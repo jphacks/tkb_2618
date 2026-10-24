@@ -65,7 +65,7 @@ function showWindow(): void { if (window?.isMinimized()) window.restore(); windo
 async function save(config: Config): Promise<void> {
   const portChanged = config.port !== store.config.port || config.protocol !== store.config.protocol
   const changed = config.autostart !== store.config.autostart
-  await store.save(config)
+  await store.update(current => ({ ...config, calibration: current.calibration }))
   if (changed) autostart()
   if (portChanged && device instanceof SerialDevice) {
     try { await cancelCalibration() } finally { device.reconnect() }
@@ -159,7 +159,10 @@ function handlers(): void {
   handle(IPC.calSave, value => calibrationWork(async () => {
     if (!calibrating || !calibrationNoise || !Array.isArray(value) || !value.every(Array.isArray)) throw new Error('キャリブレーション値が正しくありません')
     const cal = calculateCalibration(calibrationNoise, value as Samples)
-    try { await device.saveCalibration(cal) }
+    try {
+      await device.saveCalibration(cal)
+      await updateConfig(config => ({ ...config, calibration: cal }))
+    }
     finally {
       try { if (device.status.state === 'connected') await device.setMode('run') }
       finally { calibrating = false; calibrationNoise = undefined }
@@ -195,7 +198,7 @@ else {
     device = isMock ? new MockDevice(() => {
       const config = store.config
       return config.profiles.find(p => p.id === config.activeProfileId)!.keys.flatMap((key, index) => key ? [index] : [])
-    }) : new SerialDevice(() => store.config.port, undefined, undefined, undefined, () => getProtocol(store.config.protocol))
+    }) : new SerialDevice(() => store.config.port, undefined, undefined, undefined, () => getProtocol(store.config.protocol), () => store.config.calibration)
     runner = new ActionRunner(updateConfig)
     autostart()
     handlers()

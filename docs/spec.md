@@ -55,6 +55,8 @@ type Config = {
   notify: boolean;          // 非表示中の発火を Windows 通知で知らせる（既定 true）
   autostart: boolean;       // Windows ログイン時に起動（既定 true）
   port: string | 'auto';    // シリアルポート（既定 'auto'）
+  protocol: string;         // シリアルの形式（既定 'auto'。UI には出さない）
+  calibration?: Calibration; // 最後に保存したキャリブレーション（docs/protocol.md）
 };
 ```
 
@@ -95,7 +97,8 @@ type Config = {
 
 ## デバイス接続（main）
 
-- `port: 'auto'` のときは、シリアルポート一覧から ESP32 系の USB-UART（VID 10C4 / 1A86 / 303A）を優先して順に開き、`ping` → `hello` が返ったポートを使う
+- `port: 'auto'` のときは、シリアルポート一覧から ESP32 系の USB-UART（VID 10C4 / 1A86 / 303A）を優先して順に開き、DeskAPI のボードだと分かったポートを使う。本番ファーム（xiao-stream）はデータ行、参考実装は `ping` → `hello` で分かる（`docs/protocol.md`。形式は `protocol: 'auto'` で自動で見分ける）
+- 本番ファームは生値を送るだけなので、判定（領域・回数・強弱・飽和）とキャリブレーションの計測はアプリの検出器が行う。校正値は設定（`calibration`）に保存し、接続のたびに使う
 - 切断されたら 2 秒ごとに再接続を試す
 - 状態: `disconnected` / `connecting` / `connected`（ポート名、ファームウェア版、キャリブレーション済みか）。設定画面右上の点で示す（緑 #13D66A = 接続中、灰 #5A5A5A = 未接続、点滅 = 接続試行中）。`title` に「接続中 · COM3」などを入れる
 - `hello` の `cal` が false なら、設定画面のキャリブレーションボタンに赤い小さな点を付けて促す

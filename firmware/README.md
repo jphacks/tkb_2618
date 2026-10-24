@@ -1,6 +1,6 @@
 # DeskAPI XIAO ESP32S3 ファームウェア（参考実装）
 
-> 本番で書き込むファームは別の担当のコードに決まる予定。これは `docs/protocol.md`（v1.1）の参考実装で、回路・配線の確認と、アプリのテスト相手に使う。アプリがファームに求めることは [`docs/firmware-interface.md`](../docs/firmware-interface.md)。
+> 本番で書き込むファームはチームの [`xiao-stream/`](xiao-stream/xiao-stream.ino)（生値を送るだけ。判定はアプリ）。この README は `docs/protocol.md`（v1.1）の参考実装（判定をマイコンで行う版）のもので、アプリの検出器の移植元とテスト相手。アプリは `protocol: 'auto'` でどちらも見分ける。
 
 仕様は [シリアルプロトコル](../docs/protocol.md)。PlatformIO / Arduino、
 Seeed Studio XIAO ESP32S3 を既定とする。USB Serial/JTAG の CDC に

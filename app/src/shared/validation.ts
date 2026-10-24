@@ -25,6 +25,7 @@ function isDeskKey(v: unknown): v is DeskKey | null {
 export function isConfig(v: unknown): v is Config {
   if (!object(v) || v.version !== 1 || !Array.isArray(v.profiles) || v.profiles.length === 0
     || !['locked', 'notify', 'autostart'].every(k => typeof v[k] === 'boolean') || typeof v.port !== 'string' || typeof v.protocol !== 'string') return false
+  if (v.calibration !== undefined && !isCalibration(v.calibration)) return false
   const ids = new Set<string>()
   for (const p of v.profiles) {
     if (!object(p) || typeof p.id !== 'string' || !p.id || ids.has(p.id) || typeof p.name !== 'string' || !p.name.trim()
@@ -39,6 +40,6 @@ export function isCalibration(v: unknown): v is Calibration {
     && typeof v.doubleWindowMs === 'number' && Number.isInteger(v.doubleWindowMs) && v.doubleWindowMs > 0 && v.doubleWindowMs <= 0xffffffff
     && typeof v.refractoryMs === 'number' && Number.isInteger(v.refractoryMs) && v.refractoryMs >= 0 && v.refractoryMs <= 0xffffffff
     && (v.templates === undefined || (Array.isArray(v.templates) && v.templates.length === 4 && v.templates.every(row =>
-      Array.isArray(row) && row.length === 4 && row.every(n => typeof n === 'number' && Number.isFinite(n))
+      Array.isArray(row) && row.length === 4 && row.every(n => typeof n === 'number' && Number.isFinite(Math.fround(n)))
       && Number.isFinite(Math.hypot(...row)) && Math.hypot(...row) > 0)))
 }

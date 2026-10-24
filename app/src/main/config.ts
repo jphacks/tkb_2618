@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DEFAULT_CONFIG } from '../shared/constants'
 import { migrateHotkeys } from '../shared/hotkeys'
+import { getProtocol } from './protocols'
 import { isConfig } from '../shared/validation'
 import type { Config } from '../shared/types'
 
@@ -21,7 +22,10 @@ export class ConfigStore {
     }
     try {
       const parsed: unknown = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !('protocol' in parsed)) Object.assign(parsed, { protocol: 'deskapi-v1' })
+      if (parsed && typeof parsed === 'object') {
+        const id = (parsed as Record<string, unknown>).protocol
+        Object.assign(parsed, { protocol: typeof id === 'string' && id !== 'deskapi-v1' ? getProtocol(id).id : 'auto' })
+      }
       if (!isConfig(parsed)) throw new Error('設定の形式が正しくありません')
       this.value = migrateHotkeys(parsed)
     } catch {

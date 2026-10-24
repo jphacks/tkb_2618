@@ -1,0 +1,27 @@
+ESP-ROM: boot
+{bad}
+{"t": "hello", "fw": "0.1.0", "cal": false}
+{"t": "tap", "region": 0, "count": 1, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 0, "count": 1, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 0, "count": 2, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 0, "count": 2, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 1, "count": 1, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 1, "count": 1, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 1, "count": 2, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 1, "count": 2, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 2, "count": 1, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 2, "count": 1, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 2, "count": 2, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 2, "count": 2, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 3, "count": 1, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 3, "count": 1, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 3, "count": 2, "strength": "weak", "confidence": 0.9}
+{"t": "tap", "region": 3, "count": 2, "strength": "strong", "confidence": 0.9}
+{"t": "tap", "region": 0, "count": 1, "strength": "weak", "confidence": 1, "sat": true}
+{"t": "hit", "peaks": [1, 2, 3, 4], "ms": 15, "ring": 100, "sat": true}
+{"t": "noise", "peak": [1, 2, 3, 4], "rms": [0, 1, 1, 1]}
+{"t": "raw", "min": [2000, 2000, 2000, 2000], "max": [2100, 2100, 2100, 2100]}
+{"t": "ack", "of": "mode", "ok": true}
+{"t":"tap","region":9}
+null
+{"t":"hit","peaks":[1,2,3,4],"ms":15,"ring":-1}

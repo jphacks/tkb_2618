@@ -14,7 +14,7 @@ export type DeskKey = { icon: IconId; slash?: boolean; image?: string; color: Co
 export type Profile = { id: string; name: string; keys: (DeskKey | null)[] }
 export type Config = {
   version: 1; profiles: Profile[]; activeProfileId: string; locked: boolean
-  notify: boolean; autostart: boolean; port: string | 'auto'; protocol: string
+  notify: boolean; autostart: boolean; port: string | 'auto'; protocol: string; calibration?: Calibration
 }
 export type Region = 0 | 1 | 2 | 3
 export type Strength = 'weak' | 'strong'

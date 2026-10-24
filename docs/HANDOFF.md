@@ -1,4 +1,4 @@
-# 引き継ぎ（2026-10-24 時点）
+# 引き継ぎ（2026-10-25 時点）
 
 決めたこと・終わったこと・次にやることのまとめ。新しいセッションで作業を再開するときは、まずこれを読む。
 
@@ -15,7 +15,8 @@
 - 回路の正はチームの回路図 `docs/circuit.html`（元: https://claude.ai/artifact/SdUvAXonEdvWRYHbBbfajF ）。**回路は変えない。部品は買い足さない（購入済み）**
 - XIAO ESP32S3、ピエゾ 7BB-27-4L0 ×4、NJU7043D ×2（ボルテージフォロワ）、ダイオードは小信号ショットキー **1SS106**
 - ADC は D0 / D1 / D3 / D4（GPIO1 / 2 / 4 / 5）＝ 左上 / 右上 / 左下 / 右下。D2（GPIO3）はストラッピングピンなので使わない
-- **書き込むファームは別担当のコードに決まる予定**（「こっちの書き込みはなし」）。`firmware/` は参考実装。機能は変えない。アプリが求めることは `docs/firmware-interface.md`、形式の違いはアダプタで吸収する
+- **本番のファームはチームの `firmware/xiao-stream/`**（2026-10-24 に remote の main へ入り、`yub4-arema` にマージ済み）。判定はせず 4 ch の生値を毎秒 4000 行送るだけで、判定はアプリ（チームの決定、`feature/device-receiver` の `docs/decisions.md`）。`firmware/` のほかは参考実装。機能は変えない。xiao-stream は Arduino IDE で書き込み、PM は触らない
+- チームの `feature/device-receiver` ブランチ（C# の受信層 `pc/` と、`pc/mock-ui` の `DeskDetector`）は取り込んでいない。アプリの判定は参考実装の `Detector` を TS に移したもの
 - **任意のテーブルで成り立たせる**（特定の机・板に合わせ込まない）。テーブルごとの違いはキャリブレーション（ソフト）で吸収する
 
 ## いまの状態
@@ -30,9 +31,10 @@
 | 06 XIAO 対応 | ✅ `xiao_esp32s3` env（USB CDC）。この書の回路の節は PM の誤りで、08 が正 |
 | 07 任意のテーブル（プロトコル v1.1） | ✅ 学習した型での領域判定、`ring` → `refractoryMs`、飽和打の棄却。app test 21 件・native 30 件通過。モックでキャリブレーション完走・保存を画面で確認（飽和のモック打は数えない） |
 | 08 ファームを正式な回路に合わせる | ✅ ピン 1/2/4/5、`raw` モード、`sat`（FW-007）、README を回路図どおりに。ビルド 3 env・native 27 件通過 |
+| 10 本番ファーム xiao-stream に対応 | ✅ 検出器を TS に移植（`protocols/detector.ts`、参考実装の native テスト 24 件を同じ期待値で移植）。`xiao-stream` アダプタ（命令は手元で処理、校正値は `Config.calibration` に保存）、`protocol: 'auto'` で形式を自動判別。24 万行を 2〜3 バイトに割って流して 16 種類の tap と飽和を確認（約 0.3 秒）。test 59 件通過。`tests/fixtures/*.log` がルートの `*.log` で無視されて 09 のコミットに入っていなかったのも直した |
 | 09 ファームの形式を差し替え可能に | ✅ シリアルの形式を `app/src/main/protocols/` のアダプタに分離（既定 `deskapi-v1`）。校正非対応のファームではボタンを無効化。ログを流し込むテスト、`npm run serial-log`。test 26 件通過 |
 
-次にやること: (1) 書き込み担当のファームが確定したら、`docs/firmware-interface.md` の「ファームが確定したら」の手順（ユーザーに `npm run serial-log` でログを取ってもらう → アダプタとテストを Codex に）。(2) それまでは、ユーザーが Windows で `docs/hardware-test.md` の 2 章（ハードなし）と、参考実装での回路確認を進められる。
+次にやること: ユーザーが Windows で `docs/hardware-test.md` を 2 章から進める（3 章は xiao-stream の書き込み・T-01/T-02・`serial-log` の記録）。返ってきた結果と `serial-log-*.txt`（実機の生値）で、検出器の既定値（閾値 150、strongMin 700 など）やキャリブレーションを調整する。記録は `xiao-stream` アダプタに流せば机なしで再現できる
 
 ## 開発環境のメモ（WSL）
 

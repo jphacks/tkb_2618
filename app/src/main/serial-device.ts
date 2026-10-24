@@ -1,5 +1,5 @@
 import { getProtocol } from './protocols'
-import type { DeviceProtocol } from './protocols/types'
+import type { DeviceProtocol, ProtocolSession } from './protocols/types'
 import { SerialPort } from 'serialport'
 import type { Duplex } from 'node:stream'
 import { DisconnectedDevice } from './device'
@@ -15,7 +15,8 @@ const backend: SerialBackend = {
 }
 export class SerialDevice extends DisconnectedDevice {
   override status: DeviceStatus = { state: 'disconnected' }
-  private protocol: DeviceProtocol = getProtocol('deskapi-v1')
+  private protocol: DeviceProtocol = getProtocol('auto')
+  private session?: ProtocolSession
   private stream?: Duplex
   private running = false
   private generation = 0
@@ -25,7 +26,8 @@ export class SerialDevice extends DisconnectedDevice {
   private queue: Promise<unknown> = Promise.resolve()
   constructor(private readonly port: () => string, private readonly io: SerialBackend = backend,
     private readonly retryMs = 2000, private readonly timeoutMs?: number,
-    private readonly selectProtocol: () => DeviceProtocol = () => getProtocol('deskapi-v1')) { super() }
+    private readonly selectProtocol: () => DeviceProtocol = () => getProtocol('auto'),
+    private readonly calibration: () => Calibration | undefined = () => undefined) { super() }
   override async listPorts(): Promise<string[]> { return (await this.io.list()).map(p => p.path) }
   private statusChanged(status: DeviceStatus): void { this.status = status; this.statuses.emit(status) }
   override start(): void { if (this.running) return; this.running = true; void this.connect() }
@@ -56,21 +58,26 @@ export class SerialDevice extends DisconnectedDevice {
         try {
           const stream = this.io.open(port.path, this.protocol.serial)
           this.stream = stream
+          this.session = this.protocol.open({
+            write: data => stream.write(data, error => { if (error && this.stream === stream) this.rejectPending?.(error) }),
+            emit: event => { if (this.stream === stream) this.message(event) },
+            calibration: this.calibration()
+          })
+          const session = this.session
           let line = '', discard = false
           stream.on('data', (chunk: Buffer) => {
             if (this.stream !== stream) return
-            for (const ch of chunk.toString('utf8')) {
-              if (ch === '\n') {
-                if (!discard) {
-                  try {
-                    const message = this.protocol.parseLine(line)
-                    if (message) this.message(message)
-                  } catch { /* Boot logs and broken JSON are ignored. */ }
-                }
-                line = ''; discard = false
-              } else if (!discard) {
-                if (line.length === 512) { line = ''; discard = true } else line += ch
+            const data = chunk.toString('utf8').replace(/\r/g, '')
+            let start = 0, end: number
+            while ((end = data.indexOf('\n', start)) !== -1) {
+              if (!discard && line.length + end - start <= 512) {
+                try { session.receive(line + data.slice(start, end)) } catch { /* Ignore malformed input. */ }
               }
+              line = ''; discard = false; start = end + 1
+            }
+            if (!discard) {
+              if (line.length + data.length - start > 512) { line = ''; discard = true }
+              else line += data.slice(start)
             }
           })
           const lost = (): void => {
@@ -81,7 +88,7 @@ export class SerialDevice extends DisconnectedDevice {
           }
           stream.on('error', lost)
           stream.on('close', lost)
-          const handshake = this.protocol.handshake()
+          const handshake = session.handshake
           const hello = await this.request(handshake.send, handshake.isHello, this.timeoutMs ?? handshake.timeoutMs)
           if (!this.running || generation !== this.generation || this.stream !== stream || hello.t !== 'hello') return
           // A previous process may have exited during calibration.
@@ -105,8 +112,6 @@ export class SerialDevice extends DisconnectedDevice {
   }
   private request(command: DeviceCommand | string | undefined, matches: (message: DeviceEvent) => boolean, timeout = this.timeoutMs ?? 2000): Promise<DeviceEvent> {
     return new Promise((resolve, reject) => {
-      const encoded = typeof command === 'object' ? this.protocol.encode(command) : command
-      if (encoded === null) { reject(new Error('デバイスがこの操作に対応していません')); return }
       const stream = this.stream
       if (!stream) { reject(new Error('デバイスが未接続です')); return }
       const finish = (error?: Error, message?: DeviceEvent): void => {
@@ -123,7 +128,11 @@ export class SerialDevice extends DisconnectedDevice {
         if (!matches(message)) return
         finish(message.t === 'ack' && !message.ok ? new Error(`デバイスが操作を拒否しました: ${message.err ?? ''}`) : undefined, message)
       }
-      if (encoded !== undefined) stream.write(encoded, error => { if (error && this.stream === stream) this.rejectPending?.(error) })
+      try {
+        if (typeof command === 'object') {
+          if (!this.session?.send(command)) finish(new Error('デバイスがこの操作に対応していません'))
+        } else if (command !== undefined) stream.write(command, error => { if (error && this.stream === stream) this.rejectPending?.(error) })
+      } catch (error) { finish(error instanceof Error ? error : new Error(String(error))) }
     })
   }
   private serial<T>(work: () => Promise<T>): Promise<T> {

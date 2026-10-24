@@ -1,0 +1,2 @@
+# Serial replay fixtures are source data, not runtime logs.
+!*.log

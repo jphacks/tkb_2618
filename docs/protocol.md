@@ -1,5 +1,7 @@
 # ESP32 ⇔ PC シリアルプロトコル v1.1
 
+> **本番のファームは `firmware/xiao-stream/`（チームのコード）で、この JSON は送らない。** 4 ch の生値を送り続け、判定はアプリが行う（下の「xiao-stream（本番）」）。この文書の JSON（v1.1）は、参考実装 `firmware/` とアプリのアダプタ `deskapi-v1` の形式。アプリの中では、xiao-stream のときもこの文書と同じ `tap` / `hit` / `noise` / `raw` / `ack` を検出器（`app/src/main/protocols/detector.ts`、参考実装の `Detector` の移植）が作るので、キャリブレーションの手順・計算・判定はどちらでも同じ。
+
 v1.1 は任意のテーブルで動かすための拡張（`hit.ring`、`set_cal` の `templates`、学習した型による領域判定）と、入力回路（[DeskAPI 入力回路](https://claude.ai/artifact/SdUvAXonEdvWRYHbBbfajF)）の受入試験・飽和棄却（FW-007）のための拡張（`raw` モード、`sat`）。v1 の値（`templates` なし）もそのまま受け付ける。
 
 - USB シリアル、115200 bps、8N1
@@ -75,9 +77,28 @@ ADC は減衰 12 dB で約 0〜3.1 V、入力は 1.65 V 中心なので、振れ
    - 強弱が分かれない: 弱の amp の最大 ≥ 強の amp の最小
    - 型で判定を間違える: 24 打それぞれを、その打を除いて作った型（leave-one-out）で判定し、別の領域になった打があれば、その打の正しい領域
 
-## 判定（ファームウェア）
+## 判定（参考実装のファーム / xiao-stream ではアプリの検出器）
 
 - 各 ch を 2 kHz 以上でサンプリングし、DC を引いた絶対値のピークを見る
 - いずれかの ch が `threshold` を超えたら、そこから 15 ms の窓で全 ch のピークを取る。`templates` があれば最も似た型の領域、なければ最大の ch を領域とする
 - `refractoryMs` の間は次の打撃を見ない
 - 1 打目のあと `doubleWindowMs` 待ち、同じ領域に 2 打目が来たら `count: 2`。別の領域に来たら 1 打目を `count: 1` で確定して送り、2 打目を新しい 1 打目として扱う
+
+## xiao-stream（本番）
+
+チームの `firmware/xiao-stream/xiao-stream.ino`。詳しくはチームのブランチ `feature/device-receiver` の `firmware/xiao-stream/README.md` と `docs/decisions.md`（2026-10-24 判定をマイコンから PC へ移す）。
+
+```text
+[desk] stream boot=2126667643 ch=D0,D1,D3,D4 rate=4000   ← 起動時だけ
+1923,2101,2088,2240                                        ← 1 行に 4 ch（region 0〜3 の順。12bit 0〜4095）
+[stat] rate=4000 dropped=0                                 ← 1 秒ごと
+```
+
+- USB シリアル（115200 bps 指定。USB CDC なので速さは関係ない）。1 ch あたり毎秒 4000 回 = 1 行 250 µs。時刻は送られないので、アプリは受け取った行数から時刻を決める
+- `[` で始まる行は状態表示。PC → ファームの命令は `view`（0.25 秒ごとの振れ幅表示。人が見る用）と `stream`（連続送信に戻す）だけ
+- アプリ（アダプタ `xiao-stream`）
+  - 接続したら `stream` を送り、データ行が 8 行続いたら接続とする（`hello` 相当、`fw: 'xiao-stream'`）
+  - `mode` / `measure_noise` / `set_cal` は手元の検出器で処理し、`ack` / `noise` も手元で作る
+  - ファームに保存場所がないので、校正値はアプリの設定（`Config.calibration`）に保存し、接続のたびに検出器へ入れる。`cal` は保存済みかどうか
+- `Config.protocol` の既定 `auto` は、`stream` と `{"t":"ping"}` を両方送り、xiao-stream のデータ行か deskapi-v1 の `hello` のどちらが来たかで形式を決める
+

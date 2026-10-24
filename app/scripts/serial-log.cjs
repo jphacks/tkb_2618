@@ -8,11 +8,19 @@ if (!path || !Number.isInteger(Number(baud)) || Number(baud) <= 0) {
 const filename = `serial-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`
 const file = createWriteStream(filename, { flags: 'wx' })
 const port = new SerialPort({ path, baudRate: Number(baud), dataBits: 8, stopBits: 1, parity: 'none' })
-let buffer = '', stopping = false
+let buffer = '', stopping = false, count = 0, last = ''
+function flush() {
+  if (!count) return
+  process.stdout.write(`[${new Date().toISOString()}] 受信 ${count} 行\n`)
+  process.stdout.write(last)
+  count = 0
+}
+const timer = setInterval(flush, 1000)
 function line(value) {
   const entry = `[${new Date().toISOString()}] ${value.replace(/\r$/, '')}\n`
   file.write(entry)
-  process.stdout.write(entry)
+  if (value.startsWith('[')) process.stdout.write(entry)
+  else { count++; last = entry }
 }
 function stop(error) {
   if (stopping) return
@@ -21,6 +29,8 @@ function stop(error) {
   if (buffer) { line(buffer); buffer = '' }
   if (port.isOpen) port.close()
   else port.once('open', () => port.close())
+  clearInterval(timer)
+  flush()
   file.end()
 }
 file.on('error', error => { console.error(error.message); process.exitCode = 1; port.destroy() })

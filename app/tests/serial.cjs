@@ -9,7 +9,8 @@ class Port extends Duplex {
   _read() {}
   send(value) { this.push(JSON.stringify(value)+'\n') }
   _write(chunk,enc,done) {
-    const command=JSON.parse(chunk.toString()); this.commands.push(command)
+    const text = chunk.toString().trim().replace(/^stream\n/, ''); if(text === 'stream') { done(); return }
+    const command=JSON.parse(text); this.commands.push(command)
     done()
     queueMicrotask(() => {
       if(this.destroyed || this.silent) return

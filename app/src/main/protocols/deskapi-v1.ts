@@ -18,10 +18,14 @@ function valid(value: unknown): value is DeviceEvent {
 export const deskapiV1: DeviceProtocol = {
   id: 'deskapi-v1', serial: { baudRate: 115200 },
   capabilities: { calibration: true, raw: true },
-  handshake: () => ({ send: '{"t":"ping"}\n', isHello: event => event.t === 'hello', timeoutMs: 2000 }),
-  parseLine(line) {
-    try { const value: unknown = JSON.parse(line); return valid(value) ? value : null }
-    catch { return null }
-  },
-  encode(command) { return JSON.stringify(command) + '\n' }
+  open(io) {
+    return {
+      handshake: { send: '{"t":"ping"}\n', isHello: event => event.t === 'hello', timeoutMs: 2000 },
+      receive(line) {
+        try { const value: unknown = JSON.parse(line); if (valid(value)) io.emit(value) }
+        catch { /* Boot logs and malformed input are ignored. */ }
+      },
+      send(command) { io.write(JSON.stringify(command) + '\n'); return true }
+    }
+  }
 }
