@@ -8,6 +8,7 @@ import { isConfig } from '../shared/validation'
 import { keyIndexOf, type Config, type Region, type TapEvent } from '../shared/types'
 import { ConfigStore } from './config'
 import { MockDevice, type Device } from './device'
+import { getProtocol } from './protocols'
 import { SerialDevice } from './serial-device'
 import { calculateCalibration, type Samples } from '../shared/calibration'
 import type { Noise } from '../shared/types'
@@ -62,7 +63,7 @@ function send(channel: string, value: unknown): void {
 }
 function showWindow(): void { if (window?.isMinimized()) window.restore(); window?.show(); window?.focus() }
 async function save(config: Config): Promise<void> {
-  const portChanged = config.port !== store.config.port
+  const portChanged = config.port !== store.config.port || config.protocol !== store.config.protocol
   const changed = config.autostart !== store.config.autostart
   await store.save(config)
   if (changed) autostart()
@@ -194,7 +195,7 @@ else {
     device = isMock ? new MockDevice(() => {
       const config = store.config
       return config.profiles.find(p => p.id === config.activeProfileId)!.keys.flatMap((key, index) => key ? [index] : [])
-    }) : new SerialDevice(() => store.config.port)
+    }) : new SerialDevice(() => store.config.port, undefined, undefined, undefined, () => getProtocol(store.config.protocol))
     runner = new ActionRunner(updateConfig)
     autostart()
     handlers()

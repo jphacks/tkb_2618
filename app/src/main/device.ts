@@ -34,7 +34,7 @@ export class DisconnectedDevice implements Device {
   async saveCalibration(_calibration: Calibration): Promise<void> { throw new Error('デバイスが未接続です') }
 }
 export class MockDevice extends DisconnectedDevice {
-  override readonly status: DeviceStatus = { state: 'connected', port: 'MOCK', fw: '0.1.0-mock', cal: false }
+  override readonly status: DeviceStatus = { state: 'connected', port: 'MOCK', fw: '0.1.0-mock', cal: false, capabilities: { calibration: true, raw: true } }
   private timer?: ReturnType<typeof setInterval>
   private mode: 'run' | 'calibrate' = 'run'
   constructor(private readonly candidates: () => number[] = () => Array.from({ length: 16 }, (_, index) => index)) { super() }

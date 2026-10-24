@@ -21,6 +21,7 @@ export class ConfigStore {
     }
     try {
       const parsed: unknown = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && !('protocol' in parsed)) Object.assign(parsed, { protocol: 'deskapi-v1' })
       if (!isConfig(parsed)) throw new Error('設定の形式が正しくありません')
       this.value = migrateHotkeys(parsed)
     } catch {

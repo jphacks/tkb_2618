@@ -8,7 +8,8 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "dist": "npm run typecheck && npm run build && electron-builder --win nsis",
-    "test": "node tests/run.cjs"
+    "test": "node tests/run.cjs",
+    "serial-log": "node scripts/serial-log.cjs"
   },
   "keywords": [],
   "author": "",

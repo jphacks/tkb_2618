@@ -16,7 +16,8 @@
 | ファイル | 中身 |
 |---|---|
 | `docs/spec.md` | 製品仕様、設定データの形、各アクションの動き |
-| `docs/protocol.md` | ESP32 ⇔ PC のシリアルプロトコル |
+| `docs/protocol.md` | ESP32 ⇔ PC のシリアルプロトコル（参考実装 `firmware/` とアプリの既定アダプタ `deskapi-v1`） |
+| `docs/firmware-interface.md` | アプリがファームに求めること。本番のファームは別担当のコードになる予定で、形式の違いは `app/src/main/protocols/` のアダプタで吸収する |
 | `docs/design/settings.dc.html` | 設定画面のデザイン（承認済み）。色・寸法・アイコンの SVG パスはここから写す |
 | `docs/design/calibrate.dc.html` | キャリブレーション画面のデザイン（承認済み） |
 | `docs/circuit.html` | 入力回路（チームの回路図）。**回路は変えない**。ピン・部品・受入試験はここが正 |
@@ -30,10 +31,11 @@
 ```
 app/          Electron アプリ（electron-vite）
   src/main/       メインプロセス（シリアル、アクション実行、トレイ、通知）
+    protocols/      シリアルの形式のアダプタ。形式を知っているのはここだけ
   src/preload/    contextBridge で window.deskapi を公開
   src/renderer/   React 19 + Tailwind v4 の設定画面
   src/shared/     main / renderer 共通の型と定数
-firmware/     ESP32 ファームウェア（PlatformIO, Arduino）
+firmware/     ESP32 ファームウェアの参考実装（PlatformIO, Arduino）。本番は別担当のコード
 docs/         仕様・デザイン・タスク
 ```
 

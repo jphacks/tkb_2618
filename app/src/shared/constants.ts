@@ -425,7 +425,8 @@ export const DEFAULT_CONFIG: Config = {
   "locked": false,
   "notify": true,
   "autostart": true,
-  "port": "auto"
+  "port": "auto",
+  "protocol": "deskapi-v1"
 }
 
 export const colorOf = (id: ColorId) => COLORS.find(c => c[0] === id) ?? COLORS[4]

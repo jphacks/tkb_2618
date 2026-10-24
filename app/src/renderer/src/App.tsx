@@ -95,8 +95,8 @@ export function App() {
       })} /></nav><div className="grow" />
       <span role="img" aria-label={statusLabel} title={statusLabel} className={`device-dot ${status.state === 'connecting' ? 'connecting' : ''}`} style={{ background: error ? '#D62413' : status.state === 'connected' ? '#13D66A' : '#5A5A5A' }} />
       <IconButton label="入力ロック" icon="lock" aria-pressed={config.locked} style={{ background: config.locked ? '#D62413' : 'transparent', color: config.locked ? '#FFFFFF' : '#BDBDBD' }} onClick={() => edit(c => ({ ...c, locked: !c.locked }))} />
-      <span className="cal-control"><IconButton label="キャリブレーション" icon="calibrate" disabled={status.state !== 'connected'} onClick={() => guard(flush().then(() => setCalibrating(true)))} />
-      {status.state === 'connected' && !status.cal && <span className="cal-needed" aria-hidden="true" />}</span>
+      <span className="cal-control"><IconButton label="キャリブレーション" icon="calibrate" disabled={status.state !== 'connected' || !status.capabilities.calibration} onClick={() => guard(flush().then(() => setCalibrating(true)))} />
+      {status.state === 'connected' && status.capabilities.calibration && status.cal === false && <span className="cal-needed" aria-hidden="true" />}</span>
       <IconButton label="設定" icon="settings" aria-pressed={settings} onClick={() => setSettings(!settings)} />
     </header><DeskMap keys={profile.keys} selected={selected} fired={fired} locked={config.locked} pick={setSelected} /></main>
     {settings ? <Settings config={config} edit={edit} close={() => setSettings(false)} guard={guard} />

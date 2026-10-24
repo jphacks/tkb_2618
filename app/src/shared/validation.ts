@@ -24,7 +24,7 @@ function isDeskKey(v: unknown): v is DeskKey | null {
 }
 export function isConfig(v: unknown): v is Config {
   if (!object(v) || v.version !== 1 || !Array.isArray(v.profiles) || v.profiles.length === 0
-    || !['locked', 'notify', 'autostart'].every(k => typeof v[k] === 'boolean') || typeof v.port !== 'string') return false
+    || !['locked', 'notify', 'autostart'].every(k => typeof v[k] === 'boolean') || typeof v.port !== 'string' || typeof v.protocol !== 'string') return false
   const ids = new Set<string>()
   for (const p of v.profiles) {
     if (!object(p) || typeof p.id !== 'string' || !p.id || ids.has(p.id) || typeof p.name !== 'string' || !p.name.trim()

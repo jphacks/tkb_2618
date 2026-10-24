@@ -98,6 +98,22 @@ npm run dev
 
 ## 3. ファームウェアを書き込む
 
+> **本番のファームは書き込み担当のコードに決まる予定**（`docs/firmware-interface.md`）。確定したら、この章は書き込み担当の手順に差し替える。それまでは、下の参考実装（`firmware/`）で回路と配線を確かめておける。
+
+### 書き込み担当のファームを入れたら（まずこれ）
+
+1. 書き込み担当の手順で書き込む
+2. アプリの `app/` で、届く行を記録する（COM 番号と通信速度は実際のもの）
+
+   ```powershell
+   npm run serial-log -- COM5 115200
+   ```
+
+   各領域（左上・右上・左下・右下）を、1 回弱・1 回強・2 回弱・2 回強の順に叩き、Ctrl+C で止める。`app/` にできた `serial-log-*.txt` を PM に渡す
+3. PM がそのログに合わせてアプリ側（`app/src/main/protocols/`）を足すまで、4 章以降は待つ
+
+### 参考実装で確かめる場合
+
 ピエゾをつなぐ前に、XIAO だけを USB でつないで書き込む。手順の詳細は [`firmware/README.md`](../firmware/README.md)。
 
 ```powershell
@@ -194,7 +210,7 @@ npm run dist
 
 | 症状 | 見るところ |
 |---|---|
-| 点が灰色のまま | pio のモニタや Arduino IDE が COM ポートを開いたままになっていないか。デバイスマネージャーに COM が出ているか。充電専用ケーブルでないか。`xiao_esp32s3` の env で書き込んだか（ほかの env だと USB に何も出ない） |
+| 点が灰色のまま | 書き込み担当のファームなら、アプリがまだその形式に対応していない（3 章のログを PM に渡す）。pio のモニタや Arduino IDE が COM ポートを開いたままになっていないか。デバイスマネージャーに COM が出ているか。充電専用ケーブルでないか。`xiao_esp32s3` の env で書き込んだか（ほかの env だと USB に何も出ない） |
 | 接続まで何十秒もかかる | Bluetooth の仮想 COM ポートを順に試していることがある。歯車 → ポートで COM 番号を直接指定する |
 | hotkey が特定のアプリにだけ効かない | 管理者権限で動いているアプリには、普通の権限の DeskAPI からキーを送れない（Windows の仕様） |
 | `npm run dist` が node-gyp や Visual Studio のエラーで止まる | `app/electron-builder.yml` の `npmRebuild` が `false` になっているか |
