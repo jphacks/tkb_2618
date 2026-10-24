@@ -7,18 +7,11 @@
 #include <freertos/task.h>
 
 #include <Detector.h>
+#include <BoardPins.h>
 #include <Protocol.h>
 
 namespace {
 using namespace deskapi;
-
-#if CONFIG_IDF_TARGET_ESP32S3
-constexpr std::array<uint8_t, kChannels> kPins{{1, 2, 3, 4}};
-#elif CONFIG_IDF_TARGET_ESP32
-constexpr std::array<uint8_t, kChannels> kPins{{32, 33, 34, 35}};
-#else
-#error Unsupported DeskAPI board
-#endif
 
 constexpr uint64_t kSamplePeriodUs = 500; // One complete four-channel frame at 2 kHz.
 QueueHandle_t commandQueue = nullptr;
@@ -41,11 +34,15 @@ void queueEvent(const Event& event, void*) {
 Detector detector(queueEvent);
 
 void sendEvent(const Event& event) {
-    char json[kMaxLine + 1];
+    char json[kMaxLine + 2];
     const size_t length = encodeEvent(event, json, sizeof(json));
     if (length) {
-        Serial.write(reinterpret_cast<const uint8_t*>(json), length);
-        Serial.write('\n');
+#if ARDUINO_USB_CDC_ON_BOOT && ARDUINO_USB_MODE
+        // One complete line or nothing; never wait for an absent/stalled host.
+        if (Serial.availableForWrite() < static_cast<int>(length + 1)) return;
+#endif
+        json[length] = '\n';
+        Serial.write(reinterpret_cast<const uint8_t*>(json), length + 1);
     }
 }
 
@@ -140,10 +137,17 @@ void sampleTask(void*) {
 } // namespace
 
 void setup() {
+#if ARDUINO_USB_CDC_ON_BOOT && ARDUINO_USB_MODE
+    Serial.setTxBufferSize(1024); // More than one maximum protocol line.
+    Serial.begin(115200);
+    Serial.setTxTimeoutMs(0);
+#else
     Serial.begin(115200, SERIAL_8N1);
+#endif
     analogReadResolution(12);
     for (uint8_t pin : kPins) {
         pinMode(pin, INPUT);
+        // Arduino-ESP32 2.x calls the highest (nominal 12 dB) setting ADC_11db.
         analogSetPinAttenuation(pin, ADC_11db);
         analogRead(pin); // Initialize ADC drivers before starting the timer.
     }

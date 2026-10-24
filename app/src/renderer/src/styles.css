@@ -87,7 +87,7 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .swatch.selected::after { content: ''; position: absolute; inset: -5px; border: 2px solid #EDEDED; border-radius: 50%; }
 .icon-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .icon-grid button { aspect-ratio: 1; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.icon-grid .image-picker { width: auto; height: auto; border: 2px dashed #333; color: #8A8A8A; }
+.icon-grid .image-picker { width: auto; height: auto; border-radius: 12px; border: 2px dashed #333; color: #8A8A8A; }
 .editor-buttons { display: flex; gap: 8px; }
 .editor-buttons .icon-button { height: 52px; border-radius: 26px; }
 .editor-buttons .test-button { flex: 1 1 auto; background: #EDEDED; color: #121212; }

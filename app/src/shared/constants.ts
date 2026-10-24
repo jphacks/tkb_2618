@@ -187,7 +187,7 @@ export const ACTS: readonly {type: Action['type']; name: string; icon: IconId; c
       "type": "hotkey",
       "keys": [
         "Ctrl",
-        "C"
+        "KeyC"
       ]
     }
   },
@@ -268,7 +268,7 @@ export const DEFAULT_CONFIG: Config = {
             "keys": [
               "Ctrl",
               "Shift",
-              "M"
+              "KeyM"
             ]
           }
         },
@@ -280,7 +280,7 @@ export const DEFAULT_CONFIG: Config = {
             "keys": [
               "Win",
               "Shift",
-              "S"
+              "KeyS"
             ]
           }
         },

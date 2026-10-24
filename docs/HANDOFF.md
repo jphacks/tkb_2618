@@ -1,6 +1,6 @@
 # 引き継ぎ（2026-10-24 時点）
 
-前のセッションで決めたこと・終わったこと・次にやることのまとめ。新しい clone で作業を再開するときは、まずこれを読む。
+決めたこと・終わったこと・次にやることのまとめ。新しいセッションで作業を再開するときは、まずこれを読む。
 
 ## 進め方
 
@@ -8,39 +8,37 @@
 - Codex は `AGENTS.md` と `docs/tasks/NN-*.md` を読んで実装する
 - コミット・プッシュはユーザーに言われたときだけ。作業ブランチは `yub4-arema`（リモート `jphacks/tkb_2618`）。**`jphacks/tkb_2628` は別チームのリポジトリなので触らない**
 - ユーザーは質問を歓迎（「聞きたい内容があったらどんどん質問して」）。UI 文言は日本語
+- 完成したら、ユーザーが元の Windows PC に移してハードをつないで確かめる。その手順の細部は PM に任されている → `docs/hardware-test.md`
+
+## ハードで決まったこと（ユーザー決定）
+
+- 回路の正はチームの回路図 `docs/circuit.html`（元: https://claude.ai/artifact/SdUvAXonEdvWRYHbBbfajF ）。**回路は変えない。部品は買い足さない（購入済み）**
+- XIAO ESP32S3、ピエゾ 7BB-27-4L0 ×4、NJU7043D ×2（ボルテージフォロワ）、ダイオードは小信号ショットキー **1SS106**
+- ADC は D0 / D1 / D3 / D4（GPIO1 / 2 / 4 / 5）＝ 左上 / 右上 / 左下 / 右下。D2（GPIO3）はストラッピングピンなので使わない
+- **任意のテーブルで成り立たせる**（特定の机・板に合わせ込まない）。テーブルごとの違いはキャリブレーション（ソフト）で吸収する
 
 ## いまの状態
 
-| 対象 | 状態 |
+| タスク | 状態 |
 |---|---|
-| 仕様 | `docs/spec.md`, `docs/protocol.md` 完成 |
-| デザイン | `docs/design/settings.dc.html`（設定画面）, `calibrate.dc.html`（キャリブレーション）承認済み |
-| タスク 01 土台と画面 | **途中**（Codex がメモリ不足で強制終了）。`npm run typecheck` と `npm run build` は通る。画面がデザインどおりか、モックで動くかは未確認 |
-| タスク 02 アクション・トレイ・通知 | 未着手（01 のあと） |
-| タスク 03 シリアル・キャリブレーション | 未着手（01 のあと、02 と並行しない） |
-| タスク 04 ファームウェア | **途中**（同じく強制終了）。`pio` が入っていないためビルド・テスト未確認 |
+| 01 土台と画面 | ✅ PM が画面で確認済み（WSLg + CDP。寸法・角の線・端の点・光る演出・歯車パネル・ドラッグ・モックでのキャリブレーション完走） |
+| 02 アクション・トレイ・通知 | ✅ 実装済み。Windows API は WSL で動かせないので、Windows での確認は `docs/hardware-test.md` 2 章 |
+| 03 シリアル・キャリブレーション | ✅ 実装済み。Duplex テストで接続〜再接続を確認 |
+| 04 ファームウェア | ✅ `pio run` / native テスト通過 |
+| 05 hotkey を物理キーで記録（JIS） | ✅ `KeyboardEvent.code` で記録し、Set 1 スキャンコード（`KEYEVENTF_SCANCODE`）で送る。旧形式の移行、`npmRebuild: false`。test 14 件通過 |
+| 06 XIAO 対応 | ✅ `xiao_esp32s3` env（USB CDC）。この書の回路の節は PM の誤りで、08 が正 |
+| 07 任意のテーブル（プロトコル v1.1） | **Codex が実行中**。`app/` と `firmware/` の両方を触る |
+| 08 ファームを正式な回路に合わせる | ✅ ピン 1/2/4/5、`raw` モード、`sat`（FW-007）、README を回路図どおりに。ビルド 3 env・native 27 件通過 |
 
-## 再開手順
+次にやること: 07 の確認（テスト・モック画面でキャリブレーション完走） → ユーザーに確認してコミット・プッシュ → ユーザーが Windows で `docs/hardware-test.md`。
 
-```sh
-git clone https://github.com/jphacks/tkb_2618.git
-cd tkb_2618 && git switch yub4-arema
-cd app && npm ci
-```
+## 開発環境のメモ（WSL）
 
-Codex は **1 本ずつ** 動かす（前回 2 本並列でメモリが尽きた）。途中のファイルが残っているので、続きから仕上げるよう伝える。
-
-```sh
-codex exec -C . "AGENTS.md と docs/HANDOFF.md を読み、docs/tasks/01-scaffold-ui.md を仕上げて。前回の作業が途中で止まっているので、既存のファイルを確認して足りないところを実装する。firmware/ には触らない。コミットしない。完了条件を確認して報告。"
-```
-
-01 が終わったら PM（Claude）が確認すること:
-
-1. `npm run typecheck` / `npm run build`
-2. `DESKAPI_MOCK=1 npm run dev` で画面を開き、デザインと見比べる（色・寸法・角の線・端の点・光る演出・ドラッグ）
-3. キャリブレーションをモックで最後まで進める
-
-続けて 04（firmware の仕上げ）、02、03 の順。
+- Codex は `codex exec -s workspace-write -C . "..." < /dev/null` で起動する（v0.163 には `--full-auto` がない。`< /dev/null` がないと stdin を待って止まることがある）。サンドボックスはネットワークなし → 依存は PM が先に `npm install` しておく
+- firmware は `--add-dir /home/tsuch/.platformio` を付ける。`pio` は `uv tool install platformio` で `/home/tsuch/.local/bin/pio`、ツールチェーンはダウンロード済み
+- npm がインストールスクリプトを止めるので、Electron 本体は `node node_modules/electron/install.js` で入れる
+- 画面確認: `DISPLAY=:0 DESKAPI_MOCK=1 npx electron-vite dev --remoteDebuggingPort 9222` で起動し、CDP（`Page.captureScreenshot`、`Input.dispatchMouseEvent`）で撮影・操作する。WSL には日本語フォントがないので文字は豆腐になる
+- `.orca/` はユーザーの資料置き場（領収書など個人情報を含む）。`.gitignore` 済み。コミットしない
 
 ## デザインで決まったこと（ユーザーの好み）
 
@@ -59,8 +57,8 @@ codex exec -C . "AGENTS.md と docs/HANDOFF.md を読み、docs/tasks/01-scaffol
 
 ## 技術の前提
 
-- Windows 専用。Electron（Tauri から変更）+ electron-vite + React 19 + Tailwind v4 + @dnd-kit/core
-- ESP32 + ピエゾ 4 個がタップを判定し、USB シリアルで JSON を送る。ハードは未購入なので、実機なしで動くこと（`DESKAPI_MOCK=1`）
+- Windows 専用。Electron + electron-vite + React 19 + Tailwind v4 + @dnd-kit/core。キー入力は koffi（user32 `SendInput`）、マイクは常駐 PowerShell（Core Audio）、シリアルは serialport
+- `koffi` と `serialport` は OS ごとに別バイナリ。Windows では必ず `npm ci` し直す（`node_modules` をコピーしない）
 - Notion は使わない
 
 ## 仕様で PM が仮に決めたこと（ユーザー未確認）
@@ -68,3 +66,6 @@ codex exec -C . "AGENTS.md と docs/HANDOFF.md を読み、docs/tasks/01-scaffol
 - ウィンドウを閉じているときは、発火のたびに Windows 通知を出す（歯車パネルでオフにできる）
 - ロック中は、ロックアクションのキーだけ反応する（タップで解除できるように）
 - 歯車パネルは「通知」「自動起動」「ポート」の 3 項目
+- 飽和した打（FW-007、±1.4 V 超え）はアプリが無視する（アクションを実行しない、キャリブレーションで数えない）
+- 任意のテーブル対応として、領域判定をキャリブレーションで学んだ型（4 ch の出方）で行い、余韻の長さから `refractoryMs` を決める（protocol v1.1）
+- Windows のモック（`DESKAPI_MOCK=1`）は 4 秒ごとにアクションを本当に実行するので、実機確認ではテスト実行ボタンを使う

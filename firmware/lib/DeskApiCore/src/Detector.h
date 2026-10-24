@@ -7,25 +7,33 @@ namespace deskapi {
 
 constexpr unsigned kChannels = 4;
 constexpr uint64_t kPeakWindowUs = 15000;
+constexpr float kSaturationThreshold = 1800.0f;
+constexpr uint64_t kRawWindowUs = 10000;
 using Samples = std::array<uint16_t, kChannels>;
 
 struct Calibration {
     std::array<float, kChannels> threshold{{150, 150, 150, 150}};
     std::array<float, kChannels> strongMin{{700, 700, 700, 700}};
+    bool hasTemplates = false;
+    std::array<std::array<float, kChannels>, kChannels> templates{};
     uint32_t doubleWindowMs = 320;
     uint32_t refractoryMs = 70;
 };
 
 bool validCalibration(const Calibration& cal);
 
-enum class Mode { Run, Calibrate };
-enum class EventType { Tap, Hit, Noise, Hello, Ack };
+enum class Mode { Run, Calibrate, Raw };
+enum class EventType { Tap, Hit, Noise, Raw, Hello, Ack };
 
 struct Event {
     EventType type = EventType::Tap;
     Samples peaks{};
+    Samples rawMin{};
+    Samples rawMax{};
+    bool saturated = false;
     std::array<float, kChannels> rms{};
     uint32_t ms = 0;
+    uint32_t ring = 0;
     uint8_t region = 0;
     uint8_t count = 1;
     bool strong = false;
@@ -59,6 +67,17 @@ private:
     void* context_;
     bool initialized_ = false;
     std::array<float, kChannels> dc_{};
+    bool rawActive_ = false;
+    uint64_t rawStartUs_ = 0;
+    Samples rawMin_{};
+    Samples rawMax_{};
+    bool saturated_ = false;
+    bool ringActive_ = false;
+    bool quietActive_ = false;
+    bool ringDone_ = false;
+    uint32_t ringMs_ = 0;
+    uint64_t quietStartUs_ = 0;
+    Event ringEvent_{};
     bool collecting_ = false;
     uint64_t hitStartUs_ = 0;
     uint64_t refractoryUntilUs_ = 0;

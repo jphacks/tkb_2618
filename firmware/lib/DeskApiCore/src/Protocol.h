@@ -6,7 +6,7 @@
 namespace deskapi {
 
 constexpr const char* kFirmwareVersion = "0.1.0";
-constexpr size_t kMaxLine = 512;
+constexpr size_t kMaxLine = 1024;
 enum class CommandType { Ignore, Ping, Mode, MeasureNoise, SetCalibration, Invalid };
 
 struct Command {

@@ -1,0 +1,519 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>DeskAPI 入力回路</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 回路図を主役にした1カラムの設計シート。全体図 → 1chの回路図 → 部品の役割 → ICのつなぎ方 → 部品表 → 確認手順 */
+:root {
+  --paper: #f5f6f3;
+  --sheet: #ffffff;
+  --ink: #1b2320;
+  --muted: #5d6a64;
+  --rule: #d5dcd8;
+  --signal: #1f5fbf;
+  --signal-soft: #e3ecfa;
+  --danger: #b3261e;
+  --danger-soft: #fbe6e4;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121715; --sheet: #19201d; --ink: #e2e9e5; --muted: #98a7a0; --rule: #2c3733;
+    --signal: #7eb0ff; --signal-soft: #1b2a40; --danger: #ff8a80; --danger-soft: #3a1d1b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121715; --sheet: #19201d; --ink: #e2e9e5; --muted: #98a7a0; --rule: #2c3733;
+  --signal: #7eb0ff; --signal-soft: #1b2a40; --danger: #ff8a80; --danger-soft: #3a1d1b; color-scheme: dark;
+}
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.75; }
+.wrap {
+  max-width: 940px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+  display: flex; flex-direction: column; gap: 44px;
+}
+header { display: flex; flex-direction: column; gap: 10px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; color: var(--muted); }
+h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.3; margin: 0; font-weight: 700; text-wrap: balance; }
+h2 { font-size: 20px; margin: 0; font-weight: 700; text-wrap: balance; }
+p { margin: 0; max-width: 66ch; }
+.lead { color: var(--muted); }
+.flag { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; font-size: 13px; font-weight: 700; color: var(--danger); background: var(--danger-soft); padding: 4px 12px; border-radius: 6px; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+code, .mono { font-family: var(--font-mono); font-size: .9em; }
+ul, ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; max-width: 70ch; }
+b { font-weight: 700; }
+
+figure { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; }
+.fig-scroll { overflow-x: auto; padding: 16px 12px 8px; }
+figure svg { display: block; width: 100%; height: auto; min-width: 640px; color: var(--ink); }
+figure.small svg { min-width: 0; max-width: 360px; margin: 0 auto; }
+figcaption { border-top: 1px solid var(--rule); padding: 10px 16px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* SVG の線・文字（SVG内に style は置かず、ページ側のクラスで塗る） */
+.w { stroke: currentColor; stroke-width: 1.6; fill: none; }
+.part { stroke: currentColor; stroke-width: 1.6; fill: var(--sheet); }
+.dot { fill: currentColor; }
+.t { fill: currentColor; font-family: var(--font-mono); font-size: 12px; }
+.tl { fill: currentColor; font-family: var(--font-body); font-size: 12px; }
+.tm { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
+.sig { stroke: var(--signal); stroke-width: 2.2; fill: none; }
+.sig-t { fill: var(--signal); font-family: var(--font-body); font-size: 12px; font-weight: 700; }
+.hot { stroke: var(--danger); stroke-width: 2.2; fill: none; }
+.hot-t { fill: var(--danger); font-family: var(--font-body); font-size: 12px; font-weight: 700; }
+.amp { stroke: var(--signal); stroke-width: 1.8; fill: var(--signal-soft); }
+.box { stroke: currentColor; stroke-width: 1.4; fill: var(--sheet); }
+.zone { stroke: var(--rule); stroke-width: 1; fill: none; stroke-dasharray: 4 4; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 12px; letter-spacing: .04em; color: var(--muted); font-weight: 700; white-space: nowrap; background: var(--paper); }
+td.v { font-family: var(--font-mono); white-space: nowrap; }
+td.n { font-variant-numeric: tabular-nums; font-family: var(--font-mono); text-align: right; white-space: nowrap; }
+.why { min-width: 18em; }
+
+.two { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 720px) { .two { grid-template-columns: minmax(0, 1fr); } }
+
+.callout { border-left: 3px solid var(--danger); background: var(--sheet); padding: 12px 16px; border-radius: 0 8px 8px 0; display: flex; flex-direction: column; gap: 6px; }
+.callout p { font-size: 14px; }
+footer { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; display: flex; flex-direction: column; gap: 4px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">DeskAPI · AFE（アナログ入力回路）· 最小構成 · 2026-10-24</span>
+    <h1>DeskAPI 入力回路</h1>
+    <p class="lead">圧電サウンダー 7BB-27-4L0 ×4 の信号を、XIAO ESP32S3 の ADC で安全に読むための回路です。1チャンネルは「電流制限 → 中点バイアス → クランプ → ローパス → バッファ」の順に通り、同じものを4組つくります。オペアンプは NJU7043D（2回路入り）を2個使います。</p>
+    <span class="flag">部品値は未検証。通電前にチームで見直す（knowledge §1.2）</span>
+  </header>
+
+  <section>
+    <h2>全体のつながり</h2>
+    <figure>
+      <div class="fig-scroll">
+        <svg viewBox="0 0 760 270" role="img" aria-label="4つのピエゾがそれぞれ入力回路を通り、NJU7043D 2個のバッファを経て XIAO の D0・D1・D3・D4 に入る。D2 は使わない。">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          </defs>
+          <text class="tm" x="20" y="18">机の裏</text>
+          <text class="tm" x="190" y="18">入力回路（1chずつ）</text>
+          <text class="tm" x="410" y="18">バッファ</text>
+          <text class="tm" x="590" y="18">XIAO ESP32S3</text>
+          <rect class="box" x="575" y="28" width="170" height="232" rx="8"/>
+
+          <g>
+            <circle class="part" cx="45" cy="58" r="16"/><circle class="dot" cx="45" cy="58" r="5"/>
+            <text class="tl" x="70" y="62">左上</text>
+            <line class="w" x1="100" y1="58" x2="180" y2="58" marker-end="url(#a1)"/>
+            <text class="tm" x="112" y="50">最大 数十V</text>
+            <rect class="box" x="185" y="40" width="190" height="36" rx="4"/>
+            <text class="tl" x="280" y="63" text-anchor="middle">制限・バイアス・クランプ・LPF</text>
+            <line class="sig" x1="375" y1="58" x2="402" y2="58"/>
+            <polygon class="amp" points="405,42 405,74 450,58"/>
+            <text class="t" x="460" y="62">IC1-A</text>
+            <line class="sig" x1="505" y1="58" x2="590" y2="58" marker-end="url(#a1)"/>
+            <text class="t" x="600" y="62">D0 (GPIO1)</text>
+          </g>
+          <g>
+            <circle class="part" cx="45" cy="113" r="16"/><circle class="dot" cx="45" cy="113" r="5"/>
+            <text class="tl" x="70" y="117">右上</text>
+            <line class="w" x1="100" y1="113" x2="180" y2="113" marker-end="url(#a1)"/>
+            <rect class="box" x="185" y="95" width="190" height="36" rx="4"/>
+            <text class="tl" x="280" y="118" text-anchor="middle">制限・バイアス・クランプ・LPF</text>
+            <line class="sig" x1="375" y1="113" x2="402" y2="113"/>
+            <polygon class="amp" points="405,97 405,129 450,113"/>
+            <text class="t" x="460" y="117">IC1-B</text>
+            <line class="sig" x1="505" y1="113" x2="590" y2="113" marker-end="url(#a1)"/>
+            <text class="t" x="600" y="117">D1 (GPIO2)</text>
+          </g>
+          <text class="t" x="600" y="149" style="fill: var(--danger)">D2 (GPIO3) 使わない</text>
+          <g>
+            <circle class="part" cx="45" cy="178" r="16"/><circle class="dot" cx="45" cy="178" r="5"/>
+            <text class="tl" x="70" y="182">左下</text>
+            <line class="w" x1="100" y1="178" x2="180" y2="178" marker-end="url(#a1)"/>
+            <rect class="box" x="185" y="160" width="190" height="36" rx="4"/>
+            <text class="tl" x="280" y="183" text-anchor="middle">制限・バイアス・クランプ・LPF</text>
+            <line class="sig" x1="375" y1="178" x2="402" y2="178"/>
+            <polygon class="amp" points="405,162 405,194 450,178"/>
+            <text class="t" x="460" y="182">IC2-A</text>
+            <line class="sig" x1="505" y1="178" x2="590" y2="178" marker-end="url(#a1)"/>
+            <text class="t" x="600" y="182">D3 (GPIO4)</text>
+          </g>
+          <g>
+            <circle class="part" cx="45" cy="233" r="16"/><circle class="dot" cx="45" cy="233" r="5"/>
+            <text class="tl" x="70" y="237">右下</text>
+            <line class="w" x1="100" y1="233" x2="180" y2="233" marker-end="url(#a1)"/>
+            <rect class="box" x="185" y="215" width="190" height="36" rx="4"/>
+            <text class="tl" x="280" y="238" text-anchor="middle">制限・バイアス・クランプ・LPF</text>
+            <line class="sig" x1="375" y1="233" x2="402" y2="233"/>
+            <polygon class="amp" points="405,217 405,249 450,233"/>
+            <text class="t" x="460" y="237">IC2-B</text>
+            <line class="sig" x1="505" y1="233" x2="590" y2="233" marker-end="url(#a1)"/>
+            <text class="t" x="600" y="237">D4 (GPIO5)</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>領域とADCピンの対応は要件書 §2.2 のとおり。D2(GPIO3) は起動モードを決めるストラッピングピンなので使わない。XIAO の 3V3 ピンと GND ピンから、4ch分の入力回路と NJU7043D 2個の電源をとる。</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>1チャンネル分の回路図</h2>
+    <figure>
+      <div class="fig-scroll">
+        <svg viewBox="0 0 800 340" role="img" aria-label="ピエゾの信号は R1 10kΩ を通って節点Xに入る。節点Xは R2・R3 の1MΩで1.65Vにバイアスされ、ショットキーダイオード D1・D2 で 3V3 と GND の間にクランプされ、C1 10nF でローパスがかかる。節点Xから R4 10kΩ を通って NJU7043D の非反転入力に入り、出力を反転入力に戻したボルテージフォロワの出力が ADC ピンに行く。">
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          </defs>
+
+          <!-- 3V3 レール -->
+          <line class="w" x1="250" y1="40" x2="350" y2="40"/>
+          <text class="t" x="208" y="44">3V3</text>
+          <line class="w" x1="243" y1="40" x2="250" y2="40"/>
+          <!-- GND レール -->
+          <line class="w" x1="80" y1="300" x2="440" y2="300"/>
+          <line class="w" x1="250" y1="300" x2="250" y2="308"/>
+          <line class="w" x1="238" y1="308" x2="262" y2="308"/>
+          <line class="w" x1="242" y1="313" x2="258" y2="313"/>
+          <line class="w" x1="246" y1="318" x2="254" y2="318"/>
+          <text class="t" x="268" y="316">GND</text>
+
+          <!-- ピエゾ -->
+          <line class="hot" x1="80" y1="110" x2="80" y2="150"/>
+          <line class="w" x1="62" y1="150" x2="98" y2="150"/>
+          <rect class="part" x="66" y="156" width="28" height="18"/>
+          <line class="w" x1="62" y1="180" x2="98" y2="180"/>
+          <line class="w" x1="80" y1="180" x2="80" y2="300"/>
+          <text class="tl" x="104" y="162">ピエゾ</text>
+          <text class="tm" x="104" y="178">7BB-27-4L0</text>
+          <text class="tm" x="104" y="193">約20nF</text>
+
+          <!-- R1 電流制限 -->
+          <line class="hot" x1="80" y1="110" x2="125" y2="110"/>
+          <rect class="part" x="125" y="100" width="54" height="20"/>
+          <text class="t" x="152" y="92" text-anchor="middle">R1 10kΩ</text>
+          <text class="hot-t" x="86" y="134">叩くと 最大 数十V</text>
+          <line class="w" x1="179" y1="110" x2="470" y2="110"/>
+          <circle class="dot" cx="250" cy="110" r="3.5"/>
+          <circle class="dot" cx="340" cy="110" r="3.5"/>
+          <circle class="dot" cx="420" cy="110" r="3.5"/>
+          <text class="sig-t" x="212" y="102">X</text>
+
+          <!-- R2 / R3 バイアス -->
+          <line class="w" x1="250" y1="40" x2="250" y2="55"/>
+          <rect class="part" x="240" y="55" width="20" height="40"/>
+          <line class="w" x1="250" y1="95" x2="250" y2="110"/>
+          <text class="t" x="230" y="80" text-anchor="end">R2 1MΩ</text>
+          <line class="w" x1="250" y1="110" x2="250" y2="185"/>
+          <rect class="part" x="240" y="185" width="20" height="40"/>
+          <line class="w" x1="250" y1="225" x2="250" y2="300"/>
+          <text class="t" x="230" y="210" text-anchor="end">R3 1MΩ</text>
+
+          <!-- D1: X → 3V3 -->
+          <line class="w" x1="340" y1="110" x2="340" y2="86"/>
+          <polygon class="part" points="330,86 350,86 340,70"/>
+          <polyline class="w" points="327,73 330,70 350,70 353,67"/>
+          <line class="w" x1="340" y1="70" x2="340" y2="40"/>
+          <text class="t" x="358" y="84">D1</text>
+          <!-- D2: GND → X -->
+          <line class="w" x1="340" y1="110" x2="340" y2="190"/>
+          <polyline class="w" points="327,193 330,190 350,190 353,187"/>
+          <polygon class="part" points="330,206 350,206 340,190"/>
+          <line class="w" x1="340" y1="206" x2="340" y2="300"/>
+          <text class="t" x="358" y="204">D2</text>
+          <text class="tm" x="358" y="220">ショットキー</text>
+
+          <!-- C1 ローパス -->
+          <line class="w" x1="420" y1="110" x2="420" y2="196"/>
+          <line class="w" x1="404" y1="196" x2="436" y2="196"/>
+          <line class="w" x1="404" y1="205" x2="436" y2="205"/>
+          <line class="w" x1="420" y1="205" x2="420" y2="300"/>
+          <text class="t" x="442" y="204">C1 10nF</text>
+
+          <!-- 節点Xの電圧 -->
+          <text class="sig-t" x="262" y="258">X は 1.65V を中心に</text>
+          <text class="sig-t" x="262" y="274">約 −0.3〜3.6V に収まる</text>
+
+          <!-- R4 入力保護 -->
+          <rect class="part" x="470" y="100" width="54" height="20"/>
+          <text class="t" x="497" y="92" text-anchor="middle">R4 10kΩ</text>
+          <line class="w" x1="524" y1="110" x2="590" y2="110"/>
+
+          <!-- オペアンプ（ボルテージフォロワ） -->
+          <polygon class="amp" points="590,80 590,180 680,130"/>
+          <text class="sig-t" x="597" y="115">+</text>
+          <text class="sig-t" x="598" y="156">−</text>
+          <text class="tm" x="590" y="198">NJU7043D の半分</text>
+          <text class="tm" x="590" y="213">（VDD=3V3, VSS=GND）</text>
+          <line class="w" x1="560" y1="150" x2="590" y2="150"/>
+          <line class="w" x1="560" y1="150" x2="560" y2="235"/>
+          <line class="w" x1="560" y1="235" x2="705" y2="235"/>
+          <line class="w" x1="705" y1="235" x2="705" y2="130"/>
+          <circle class="dot" cx="705" cy="130" r="3.5"/>
+          <text class="tm" x="575" y="252">出力を − 入力に直結（バッファ）</text>
+
+          <line class="sig" x1="680" y1="130" x2="780" y2="130" marker-end="url(#a2)"/>
+          <text class="sig-t" x="712" y="120">ADC へ</text>
+          <text class="tm" x="712" y="150">D0 / D1 / D3 / D4</text>
+        </svg>
+      </div>
+      <figcaption>赤い線は叩いたときに数十Vまで振れる区間で、R1 より右には持ち込まない。青は ADC に渡す信号。オペアンプの出力は電源（3V3）を超えないので、ADC ピンの手前には保護部品を置かない。大きなコンデンサを出力側に置くと NJU7043D が発振しやすくなるので、ローパスの C1 は入力側に置いている。</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>全体の配線図（NJU7043D 2個と XIAO のピン）</h2>
+    <figure>
+      <div class="fig-scroll">
+        <svg viewBox="0 0 940 610" role="img" aria-label="4チャンネルの入力回路の出力（R4）が、IC1 の3番と5番、IC2 の3番と5番に入る。各アンプは出力を−入力に直結したバッファで、IC1 の1番が XIAO の D0、7番が D1、IC2 の1番が D3、7番が D4 につながる。XIAO の 3V3 と GND が全体の電源になり、各ICの8番と4番の間に0.1µFを置く。">
+          <defs>
+            <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          </defs>
+
+          <!-- IC の範囲 -->
+          <rect class="zone" x="288" y="44" width="152" height="222" rx="6"/>
+          <text class="t" x="292" y="36">IC1  NJU7043D</text>
+          <rect class="zone" x="288" y="284" width="152" height="222" rx="6"/>
+          <text class="t" x="292" y="278">IC2  NJU7043D</text>
+
+          <!-- ch: 左上 → IC1-A → D0 -->
+          <rect class="box" x="20" y="59" width="200" height="48" rx="4"/>
+          <text class="tl" x="32" y="79">左上の入力回路</text>
+          <text class="tm" x="32" y="97">ピエゾ→R1→X→R4</text>
+          <line class="w" x1="220" y1="83" x2="330" y2="83"/>
+          <polygon class="amp" points="330,65 330,125 400,95"/>
+          <text class="sig-t" x="335" y="88">+</text><text class="sig-t" x="336" y="112">−</text>
+          <text class="t" x="318" y="77" text-anchor="end">3</text>
+          <text class="t" x="304" y="103" text-anchor="end">2</text>
+          <text class="t" x="406" y="88">1</text>
+          <polyline class="w" points="420,95 420,137 310,137 310,107 330,107"/>
+          <circle class="dot" cx="420" cy="95" r="3.5"/>
+          <polyline class="sig" points="400,95 560,95 560,100 696,100"/>
+
+          <!-- ch: 右上 → IC1-B → D1 -->
+          <rect class="box" x="20" y="179" width="200" height="48" rx="4"/>
+          <text class="tl" x="32" y="199">右上の入力回路</text>
+          <text class="tm" x="32" y="217">ピエゾ→R1→X→R4</text>
+          <line class="w" x1="220" y1="203" x2="330" y2="203"/>
+          <polygon class="amp" points="330,185 330,245 400,215"/>
+          <text class="sig-t" x="335" y="208">+</text><text class="sig-t" x="336" y="232">−</text>
+          <text class="t" x="318" y="197" text-anchor="end">5</text>
+          <text class="t" x="304" y="223" text-anchor="end">6</text>
+          <text class="t" x="406" y="208">7</text>
+          <polyline class="w" points="420,215 420,257 310,257 310,227 330,227"/>
+          <circle class="dot" cx="420" cy="215" r="3.5"/>
+          <polyline class="sig" points="400,215 580,215 580,160 696,160"/>
+
+          <!-- ch: 左下 → IC2-A → D3 -->
+          <rect class="box" x="20" y="299" width="200" height="48" rx="4"/>
+          <text class="tl" x="32" y="319">左下の入力回路</text>
+          <text class="tm" x="32" y="337">ピエゾ→R1→X→R4</text>
+          <line class="w" x1="220" y1="323" x2="330" y2="323"/>
+          <polygon class="amp" points="330,305 330,365 400,335"/>
+          <text class="sig-t" x="335" y="328">+</text><text class="sig-t" x="336" y="352">−</text>
+          <text class="t" x="318" y="317" text-anchor="end">3</text>
+          <text class="t" x="304" y="343" text-anchor="end">2</text>
+          <text class="t" x="406" y="328">1</text>
+          <polyline class="w" points="420,335 420,377 310,377 310,347 330,347"/>
+          <circle class="dot" cx="420" cy="335" r="3.5"/>
+          <polyline class="sig" points="400,335 600,335 600,280 696,280"/>
+
+          <!-- ch: 右下 → IC2-B → D4 -->
+          <rect class="box" x="20" y="419" width="200" height="48" rx="4"/>
+          <text class="tl" x="32" y="439">右下の入力回路</text>
+          <text class="tm" x="32" y="457">ピエゾ→R1→X→R4</text>
+          <line class="w" x1="220" y1="443" x2="330" y2="443"/>
+          <polygon class="amp" points="330,425 330,485 400,455"/>
+          <text class="sig-t" x="335" y="448">+</text><text class="sig-t" x="336" y="472">−</text>
+          <text class="t" x="318" y="437" text-anchor="end">5</text>
+          <text class="t" x="304" y="463" text-anchor="end">6</text>
+          <text class="t" x="406" y="448">7</text>
+          <polyline class="w" points="420,455 420,497 310,497 310,467 330,467"/>
+          <circle class="dot" cx="420" cy="455" r="3.5"/>
+          <polyline class="sig" points="400,455 620,455 620,340 696,340"/>
+
+          <!-- XIAO ESP32S3 -->
+          <rect class="part" x="757" y="48" width="46" height="14" rx="3"/>
+          <text class="tm" x="780" y="42" text-anchor="middle">USB-C</text>
+          <rect class="box" x="700" y="62" width="160" height="430" rx="8"/>
+          <text class="tl" x="780" y="84" text-anchor="middle">XIAO ESP32S3</text>
+          <!-- 左列 -->
+          <circle class="dot" cx="700" cy="100" r="3.5"/><text class="t" x="710" y="104">D0 GPIO1</text>
+          <circle class="dot" cx="700" cy="160" r="3.5"/><text class="t" x="710" y="164">D1 GPIO2</text>
+          <text class="t" x="710" y="224" style="fill: var(--danger)">D2 使わない</text>
+          <circle class="dot" cx="700" cy="280" r="3.5"/><text class="t" x="710" y="284">D3 GPIO4</text>
+          <circle class="dot" cx="700" cy="340" r="3.5"/><text class="t" x="710" y="344">D4 GPIO5</text>
+          <text class="tm" x="710" y="404">D5</text>
+          <text class="tm" x="710" y="464">D6</text>
+          <!-- 右列 -->
+          <text class="tm" x="852" y="104" text-anchor="end">5V</text>
+          <text class="t" x="852" y="164" text-anchor="end">GND</text>
+          <text class="t" x="852" y="224" text-anchor="end">3V3</text>
+          <text class="tm" x="852" y="284" text-anchor="end">D10</text>
+          <text class="tm" x="852" y="344" text-anchor="end">D9</text>
+          <text class="tm" x="852" y="404" text-anchor="end">D8</text>
+          <text class="tm" x="852" y="464" text-anchor="end">D7</text>
+          <!-- 電源の取り出し -->
+          <circle class="dot" cx="860" cy="160" r="3.5"/>
+          <line class="w" x1="860" y1="160" x2="895" y2="160"/>
+          <line class="w" x1="895" y1="160" x2="895" y2="172"/>
+          <line class="w" x1="883" y1="172" x2="907" y2="172"/>
+          <line class="w" x1="887" y1="177" x2="903" y2="177"/>
+          <line class="w" x1="891" y1="182" x2="899" y2="182"/>
+          <text class="tm" x="895" y="198" text-anchor="middle">GND</text>
+          <circle class="dot" cx="860" cy="220" r="3.5"/>
+          <line class="w" x1="860" y1="220" x2="885" y2="220"/>
+          <polygon class="part" points="885,212 925,212 933,220 925,228 885,228"/>
+          <text class="t" x="907" y="224" text-anchor="middle">3V3</text>
+
+          <!-- 各ICの電源とパスコン -->
+          <text class="tm" x="20" y="540">各ICの電源（どちらのICも同じ）</text>
+          <g>
+            <polygon class="part" points="20,556 60,556 68,564 60,572 20,572"/>
+            <text class="t" x="42" y="568" text-anchor="middle">3V3</text>
+            <line class="w" x1="68" y1="564" x2="200" y2="564"/>
+            <circle class="dot" cx="130" cy="564" r="3.5"/>
+            <text class="t" x="206" y="568">IC の 8番 (VDD)</text>
+            <line class="w" x1="130" y1="564" x2="130" y2="575"/>
+            <line class="w" x1="116" y1="575" x2="144" y2="575"/>
+            <line class="w" x1="116" y1="582" x2="144" y2="582"/>
+            <text class="t" x="150" y="583">0.1µF</text>
+            <line class="w" x1="130" y1="582" x2="130" y2="594"/>
+            <line class="w" x1="118" y1="594" x2="142" y2="594"/>
+            <line class="w" x1="122" y1="599" x2="138" y2="599"/>
+            <line class="w" x1="126" y1="604" x2="134" y2="604"/>
+            <text class="t" x="206" y="598">IC の 4番 (VSS) → GND</text>
+          </g>
+          <text class="tm" x="470" y="560">入力回路の R2・D1 は 3V3 へ、</text>
+          <text class="tm" x="470" y="578">R3・D2・C1・ピエゾの片側は GND へ</text>
+          <text class="tm" x="470" y="596">（1チャンネル分の回路図のとおり）</text>
+        </svg>
+      </div>
+      <figcaption>青い線がバッファの出力から XIAO の ADC ピンへの配線。左上・右上を IC1、左下・右下を IC2 が受け持つ。どちらのICも、−入力（2番・6番）は同じアンプの出力（1番・7番）に直結する。XIAO のピンの並びは Seeed の公式ピン図で要確認（GPIO 番号の対応は公式の表で確認済み）。</figcaption>
+    </figure>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>から</th><th>へ</th><th>メモ</th></tr></thead>
+        <tbody>
+          <tr><td>XIAO 3V3</td><td>3V3 ライン</td><td>IC1・IC2 の 8番、4ch分の R2 と D1</td></tr>
+          <tr><td>XIAO GND</td><td>GND ライン</td><td>IC1・IC2 の 4番、4ch分の R3・D2・C1・ピエゾの片側</td></tr>
+          <tr><td>左上の R4</td><td>IC1 3番（+IN A）</td><td></td></tr>
+          <tr><td>IC1 1番（OUT A）</td><td>IC1 2番 と XIAO D0</td><td>1番と2番は直結</td></tr>
+          <tr><td>右上の R4</td><td>IC1 5番（+IN B）</td><td></td></tr>
+          <tr><td>IC1 7番（OUT B）</td><td>IC1 6番 と XIAO D1</td><td>7番と6番は直結</td></tr>
+          <tr><td>左下の R4</td><td>IC2 3番（+IN A）</td><td></td></tr>
+          <tr><td>IC2 1番（OUT A）</td><td>IC2 2番 と XIAO D3</td><td>1番と2番は直結</td></tr>
+          <tr><td>右下の R4</td><td>IC2 5番（+IN B）</td><td></td></tr>
+          <tr><td>IC2 7番（OUT B）</td><td>IC2 6番 と XIAO D4</td><td>7番と6番は直結</td></tr>
+          <tr><td>0.1µF ×2</td><td>各ICの 8番 と 4番 の間</td><td>ICのすぐ近くに置く</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>各部品の役割</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>記号</th><th>値</th><th>役割</th><th class="why">決め方</th></tr></thead>
+        <tbody>
+          <tr><td>R1</td><td class="v">10kΩ</td><td>電流制限</td><td>ピエゾが 50V 出ても、D1・D2 に流れるのは約 5mA まで。</td></tr>
+          <tr><td>R2・R3</td><td class="v">1MΩ ×2</td><td>中点バイアス兼ブリーダー</td><td>X を 1.65V に置き、ピエゾにたまる電荷を逃がす。見かけの抵抗は 500kΩ で、ピエゾ＋C1（約30nF）と組んで約10Hz以下を通さない。</td></tr>
+          <tr><td>D1・D2</td><td class="v">ショットキー ×2</td><td>クランプ</td><td>X を 3V3＋約0.35V と GND−約0.35V の間に押さえる。小信号用（BAT43・BAT85・BAT54 など）を使う。</td></tr>
+          <tr><td>C1</td><td class="v">10nF</td><td>ローパス（折り返し防止）</td><td>R1 と組んで遮断周波数 約1.6kHz（1/(2π×10kΩ×10nF)）。1chあたり数kSPS で読んでも折り返しにくい。</td></tr>
+          <tr><td>R4</td><td class="v">10kΩ</td><td>オペアンプ入力の保護</td><td>NJU7043D は入力が電源電圧を超えてはいけない。D1 の分（約0.35V）だけ超えるので、IC内部に流れる電流をこれで絞る。入力電流は 1pA 程度なので、信号は変わらない。</td></tr>
+          <tr><td>U</td><td class="v">NJU7043D の半分</td><td>バッファ</td><td>ADC の切り替え時に、前のchの電圧が残らないよう、すぐに充電し直す（クロストーク対策、knowledge §1.3）。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>NJU7043D のつなぎ方</h2>
+    <div class="two">
+      <figure class="small">
+        <div class="fig-scroll">
+          <svg viewBox="0 0 300 230" role="img" aria-label="NJU7043D は DIP8。切り欠きを上にして左上が1番ピン。左側が上から1・2・3・4番、右側が上から8・7・6・5番。">
+            <rect class="box" x="100" y="20" width="100" height="190" rx="6"/>
+            <path class="w" d="M138 20 a12 12 0 0 0 24 0"/>
+            <circle class="w" cx="117" cy="40" r="4"/>
+            <line class="w" x1="80" y1="50" x2="100" y2="50"/><line class="w" x1="80" y1="95" x2="100" y2="95"/>
+            <line class="w" x1="80" y1="140" x2="100" y2="140"/><line class="w" x1="80" y1="185" x2="100" y2="185"/>
+            <line class="w" x1="200" y1="50" x2="220" y2="50"/><line class="w" x1="200" y1="95" x2="220" y2="95"/>
+            <line class="w" x1="200" y1="140" x2="220" y2="140"/><line class="w" x1="200" y1="185" x2="220" y2="185"/>
+            <text class="t" x="112" y="54">1</text><text class="t" x="112" y="99">2</text><text class="t" x="112" y="144">3</text><text class="t" x="112" y="189">4</text>
+            <text class="t" x="181" y="54">8</text><text class="t" x="181" y="99">7</text><text class="t" x="181" y="144">6</text><text class="t" x="181" y="189">5</text>
+            <text class="t" x="74" y="54" text-anchor="end">OUT A</text><text class="t" x="74" y="99" text-anchor="end">−IN A</text>
+            <text class="t" x="74" y="144" text-anchor="end">+IN A</text><text class="t" x="74" y="189" text-anchor="end">VSS</text>
+            <text class="t" x="226" y="54">VDD</text><text class="t" x="226" y="99">OUT B</text>
+            <text class="t" x="226" y="144">−IN B</text><text class="t" x="226" y="189">+IN B</text>
+          </svg>
+        </div>
+        <figcaption>上から見た図。切り欠き（半円）と丸印の側が1番ピン。</figcaption>
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ピン</th><th>機能</th><th>IC1（左上・右上）</th><th>IC2（左下・右下）</th></tr></thead>
+          <tbody>
+            <tr><td class="n">1</td><td>OUT A</td><td>D0 へ、2番とも直結</td><td>D3 へ、2番とも直結</td></tr>
+            <tr><td class="n">2</td><td>−IN A</td><td>1番と直結</td><td>1番と直結</td></tr>
+            <tr><td class="n">3</td><td>+IN A</td><td>左上の R4 から</td><td>左下の R4 から</td></tr>
+            <tr><td class="n">4</td><td>VSS</td><td>GND</td><td>GND</td></tr>
+            <tr><td class="n">5</td><td>+IN B</td><td>右上の R4 から</td><td>右下の R4 から</td></tr>
+            <tr><td class="n">6</td><td>−IN B</td><td>7番と直結</td><td>7番と直結</td></tr>
+            <tr><td class="n">7</td><td>OUT B</td><td>D1 へ、6番とも直結</td><td>D4 へ、6番とも直結</td></tr>
+            <tr><td class="n">8</td><td>VDD</td><td>3V3（8番と4番の間に 0.1µF）</td><td>3V3（8番と4番の間に 0.1µF）</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>部品表（4チャンネル分）</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>部品</th><th>値・型番</th><th>数</th><th>メモ</th></tr></thead>
+        <tbody>
+          <tr><td>オペアンプ</td><td class="v">NJU7043D</td><td class="n">2</td><td>2回路入り DIP8。1.8〜5.5V、入出力フルスイング</td></tr>
+          <tr><td>抵抗</td><td class="v">10kΩ</td><td class="n">8</td><td>R1・R4 を各chに1本ずつ</td></tr>
+          <tr><td>抵抗</td><td class="v">1MΩ</td><td class="n">8</td><td>R2・R3。4chでそろった値のものを使う</td></tr>
+          <tr><td>ダイオード</td><td class="v">小信号ショットキー</td><td class="n">8</td><td>BAT43・BAT85・BAT54 など。2個入り（BAT54S）なら4個</td></tr>
+          <tr><td>コンデンサ</td><td class="v">10nF</td><td class="n">4</td><td>C1。セラミックかフィルム</td></tr>
+          <tr><td>コンデンサ</td><td class="v">0.1µF</td><td class="n">2</td><td>各ICの電源ピンのすぐ近くに</td></tr>
+          <tr><td>ピエゾ</td><td class="v">7BB-27-4L0</td><td class="n">4</td><td>リード線付き。机の裏に同じ方法で固定</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <p><b>ダイオードについて。</b>1N4148 などのシリコンダイオードは順方向電圧が約0.7Vあり、X が約4.0Vまで上がってオペアンプの入力定格を大きく超えるので使わない。1N5819 などの電源用ショットキーも、漏れ電流が大きく、1MΩ のバイアスがずれるので避ける。手持ちの型番が分かれば、使えるか確認する。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>組んだあとの確認（受入試験 T-01・T-02）</h2>
+    <ol>
+      <li><b>通電前</b>：テスターで、3V3 と GND の間が短絡していないこと。各ICの8番が 3V3、4番が GND につながっていること。</li>
+      <li><b>通電して、ピエゾはまだつながない</b>：各chの X と、ADC ピン（D0・D1・D3・D4）が約1.65Vであること。</li>
+      <li><b>ピエゾをつないで指で軽くたたく</b>：ADC ピンの電圧が 1.65V を中心に振れること（テスターでは追えないので、ファームの生波形モードで見る）。</li>
+      <li><b>4つのセンサーの近くを順にたたく</b>：たたいた近くのchが最大になること（T-02）。隣のchにも同じ形の波形が出るなら、配線の引き回しを見直す。</li>
+      <li><b>信号が小さすぎるとき</b>：同じ NJU7043D で増幅に変える（−入力から GND へ抵抗、出力から −入力へ抵抗を足す）。値は実測してから決める。</li>
+    </ol>
+  </section>
+
+  <footer>
+    <span>出典：NJU7043 データシート（新日本無線、Ver.2009-06-05）、requirements §2.2、knowledge §1.2・§1.3。XIAO のピン配置は Seeed の公式ページで要確認。</span>
+    <span>ADC の測れる範囲は減衰 12dB で約 0〜3.1V（要確認）。中点 1.65V なので、振れ幅はおよそ ±1.4V。超えた分は飽和として棄却する（FW-007）。</span>
+  </footer>
+</div>
+
+</body></html>

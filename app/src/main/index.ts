@@ -1,38 +1,74 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, Tray } from 'electron'
 import { join } from 'node:path'
 import { readFile, stat } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { IPC } from '../shared/ipc'
 import { ACTS, PATTERNS, REGIONS } from '../shared/constants'
-import { isCalibration, isConfig } from '../shared/validation'
+import { isConfig } from '../shared/validation'
 import { keyIndexOf, type Config, type Region, type TapEvent } from '../shared/types'
 import { ConfigStore } from './config'
-import { DisconnectedDevice, MockDevice, type Device } from './device'
-import { LoggingActionRunner } from './actions'
+import { MockDevice, type Device } from './device'
+import { SerialDevice } from './serial-device'
+import { calculateCalibration, type Samples } from '../shared/calibration'
+import type { Noise } from '../shared/types'
+import { ActionRunner } from './actions'
 
 app.setName('DeskAPI')
-app.setAppUserModelId('jp.deskapi.app')
+if (process.platform === 'win32') app.setAppUserModelId('jp.deskapi.app')
 const isMock = process.env.DESKAPI_MOCK === '1'
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
 let store: ConfigStore
 let device: Device
-let runner: LoggingActionRunner
+let runner: ActionRunner
 let notification: Notification | undefined
 let calibrating = false
+let calibrationNoise: Noise | undefined
+let calibrationQueue: Promise<unknown> = Promise.resolve()
+function calibrationWork<T>(work: () => Promise<T>): Promise<T> {
+  const result = calibrationQueue.then(work)
+  calibrationQueue = result.catch(() => {})
+  return result
+}
+function cancelCalibration(): Promise<void> {
+  return calibrationWork(async () => {
+    try { if (calibrating && device.status.state === 'connected') await device.setMode('run') }
+    finally { calibrating = false; calibrationNoise = undefined }
+  })
+}
 
+function notify(title: string, body: string): void {
+  if (process.platform !== 'win32') { console.info('[Windows notification skipped]', title, body); return }
+  if (!Notification.isSupported()) { console.error('[Notification unavailable]', title, body); return }
+  notification?.close()
+  notification = new Notification({ title, body, toastXml: `<toast><visual><binding template="ToastGeneric"><text>${escapeXml(title)}</text><text>${escapeXml(body)}</text></binding></visual></toast>` })
+  notification.on('failed', (_event, error) => console.error('[Notification]', error))
+  notification.show()
+}
+function escapeXml(value: string): string {
+  return value.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!)
+}
 function reportError(error: unknown): void {
   console.error(error)
-  notification?.close()
-  notification = new Notification({ title: 'DeskAPI', body: error instanceof Error ? error.message : String(error) })
-  notification.show()
+  notify('DeskAPI', error instanceof Error ? error.message : String(error))
+}
+function autostart(): void {
+  if (process.platform !== 'win32') { console.info('[Windows autostart skipped]', store.config.autostart); return }
+  app.setLoginItemSettings({ openAtLogin: store.config.autostart, path: process.execPath })
 }
 function send(channel: string, value: unknown): void {
   if (window && !window.isDestroyed()) window.webContents.send(channel, value)
 }
-function showWindow(): void { window?.show(); window?.focus() }
+function showWindow(): void { if (window?.isMinimized()) window.restore(); window?.show(); window?.focus() }
 async function save(config: Config): Promise<void> {
+  const portChanged = config.port !== store.config.port
+  const changed = config.autostart !== store.config.autostart
   await store.save(config)
+  if (changed) autostart()
+  if (portChanged && device instanceof SerialDevice) {
+    try { await cancelCalibration() } finally { device.reconnect() }
+  }
   updateTray()
 }
 async function updateConfig(change: (config: Config) => Config): Promise<void> {
@@ -40,26 +76,11 @@ async function updateConfig(change: (config: Config) => Config): Promise<void> {
   updateTray()
   send(IPC.configChanged, store.config)
 }
-// A flat bitmap at both Windows tray sizes. The three states use distinct silhouettes.
 function trayImage(): Electron.NativeImage {
-  const result = nativeImage.createEmpty()
   const state = store.config.locked ? 'lock' : device.status.state === 'connected' ? 'normal' : 'disconnected'
-  for (const size of [16, 32]) {
-    const pixels = Buffer.alloc(size * size * 4)
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const u = x * 16 / size, v = y * 16 / size
-      const filled = state === 'lock'
-        ? (u >= 4 && u < 12 && v >= 7 && v < 14) || (u >= 5 && u < 11 && v >= 2 && v < 8 && (u < 7 || u >= 9 || v < 4))
-        : u >= 2 && u < 14 && v >= 3 && v < 13 && !(u >= 7 && u < 9 || v >= 7 && v < 9)
-      if (filled && !(state === 'disconnected' && Math.abs(u - v) < 1.4)) {
-        const offset = (y * size + x) * 4
-        pixels[offset] = pixels[offset + 1] = pixels[offset + 2] = 237
-        pixels[offset + 3] = 255
-      }
-    }
-    result.addRepresentation({ scaleFactor: size / 16, buffer: nativeImage.createFromBitmap(pixels, { width: size, height: size }).toPNG() })
-  }
-  return result
+  const image = nativeImage.createFromPath(join(__dirname, `../../resources/tray-${state}-16.png`))
+  image.addRepresentation({ scaleFactor: 2, buffer: readFileSync(join(__dirname, `../../resources/tray-${state}-32.png`)) })
+  return image
 }
 function updateTray(): void {
   if (!tray) return
@@ -78,6 +99,7 @@ function updateTray(): void {
   ]))
 }
 async function runTap(tap: TapEvent): Promise<void> {
+  if (tap.sat) return
   await store.flush()
   if (calibrating) return
   const index = keyIndexOf(tap), config = store.config
@@ -87,10 +109,7 @@ async function runTap(tap: TapEvent): Promise<void> {
   await runner.run(key.action, { index, profile: profile.name, tap })
   if (window?.isVisible()) send(IPC.tap, tap)
   else if (config.notify) {
-    notification?.close()
-    notification = new Notification({ title: ACTS.find(a => a.type === key.action.type)!.name,
-      body: `${REGIONS[tap.region]} · ${PATTERNS[index % 4]}` })
-    notification.show()
+    notify(ACTS.find(a => a.type === key.action.type)!.name, `${REGIONS[tap.region]} · ${PATTERNS[index % 4]}`)
   }
 }
 function handlers(): void {
@@ -110,8 +129,8 @@ function handlers(): void {
   handle(IPC.listPorts, () => device.listPorts())
   handle(IPC.runKey, async value => {
     if (!Number.isInteger(value) || typeof value !== 'number' || value < 0 || value > 15) throw new Error('キー番号が正しくありません')
-    await runTap({ t: 'tap', region: Math.floor(value / 4) as Region, count: value % 4 < 2 ? 1 : 2,
-      strength: value % 2 === 0 ? 'weak' : 'strong', confidence: 1 })
+    try { await runTap({ t: 'tap', region: Math.floor(value / 4) as Region, count: value % 4 < 2 ? 1 : 2,
+      strength: value % 2 === 0 ? 'weak' : 'strong', confidence: 1 }) } catch (error) { reportError(error); throw error }
   })
   handle(IPC.pickFile, async () => {
     const result = await dialog.showOpenDialog(window!, { properties: ['openFile'] })
@@ -126,21 +145,26 @@ function handlers(): void {
     if (image.isEmpty()) throw new Error('画像を読み込めません')
     return image.toDataURL()
   })
-  handle(IPC.calStart, async () => { await device.setMode('calibrate'); calibrating = true })
-  handle(IPC.calMeasureNoise, () => {
+  handle(IPC.calStart, () => calibrationWork(async () => {
+    calibrating = true
+    calibrationNoise = undefined
+    try { await device.setMode('calibrate') } catch (error) { await device.setMode('run').catch(() => {}); calibrating = false; throw error }
+  }))
+  handle(IPC.calMeasureNoise, () => calibrationWork(async () => {
     if (!calibrating) throw new Error('キャリブレーションが開始されていません')
-    return device.measureNoise()
-  })
-  handle(IPC.calSave, async value => {
-    if (!calibrating || !isCalibration(value)) throw new Error('キャリブレーション値が正しくありません')
-    await device.saveCalibration(value)
-    await device.setMode('run')
-    calibrating = false
-  })
-  handle(IPC.calCancel, async () => {
-    if (device.status.state === 'connected') await device.setMode('run')
-    calibrating = false
-  })
+    calibrationNoise = await device.measureNoise()
+    return calibrationNoise
+  }))
+  handle(IPC.calSave, value => calibrationWork(async () => {
+    if (!calibrating || !calibrationNoise || !Array.isArray(value) || !value.every(Array.isArray)) throw new Error('キャリブレーション値が正しくありません')
+    const cal = calculateCalibration(calibrationNoise, value as Samples)
+    try { await device.saveCalibration(cal) }
+    finally {
+      try { if (device.status.state === 'connected') await device.setMode('run') }
+      finally { calibrating = false; calibrationNoise = undefined }
+    }
+  }))
+  handle(IPC.calCancel, cancelCalibration)
   if (isMock) handle(IPC.calMockHit, (region, strength) => {
     if (typeof region !== 'number' || ![0, 1, 2, 3].includes(region) || (strength !== 'weak' && strength !== 'strong')) throw new Error('打撃が正しくありません')
     ;(device as MockDevice).mockHit(region as Region, strength)
@@ -153,7 +177,8 @@ async function createWindow(): Promise<void> {
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true,
       nodeIntegration: false, sandbox: true, additionalArguments: isMock ? ['--deskapi-mock'] : [] }
   })
-  window.on('close', event => { if (!quitting) { event.preventDefault(); window?.hide() } })
+  window.on('close', event => { if (!quitting) { event.preventDefault(); window?.hide(); void cancelCalibration().catch(reportError) } })
+  window.webContents.on('render-process-gone', () => { void cancelCalibration().catch(reportError) })
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', event => { event.preventDefault() })
   window.on('ready-to-show', () => { if (!app.isPackaged || process.argv.includes('--settings')) showWindow() })
@@ -169,14 +194,17 @@ else {
     device = isMock ? new MockDevice(() => {
       const config = store.config
       return config.profiles.find(p => p.id === config.activeProfileId)!.keys.flatMap((key, index) => key ? [index] : [])
-    }) : new DisconnectedDevice()
-    runner = new LoggingActionRunner()
+    }) : new SerialDevice(() => store.config.port)
+    runner = new ActionRunner(updateConfig)
+    autostart()
     handlers()
     device.onTap(tap => { void runTap(tap).catch(reportError) })
     device.onCalHit(hit => send(IPC.calHit, hit))
-    device.onStatus(status => { send(IPC.deviceStatus, status); updateTray() })
-    tray = new Tray(trayImage())
-    tray.on('click', showWindow)
+    device.onStatus(status => { if (status.state === 'disconnected') { calibrating = false; calibrationNoise = undefined }; send(IPC.deviceStatus, status); updateTray() })
+    if (process.platform === 'win32') {
+      tray = new Tray(trayImage())
+      tray.on('click', showWindow)
+    } else console.info('[Windows tray skipped]')
     updateTray()
     device.start()
     await createWindow()
@@ -185,8 +213,10 @@ else {
     if (quitting) return
     event.preventDefault()
     quitting = true
-    device?.stop()
-    void (store?.flush() ?? Promise.resolve()).finally(() => { tray?.destroy(); app.quit() })
+    const cleanup = device ? cancelCalibration().catch(reportError).finally(() => device.stop()) : Promise.resolve()
+    runner?.close()
+    notification?.close()
+    void Promise.all([cleanup, store?.flush()]).finally(() => { tray?.destroy(); app.quit() })
   })
   app.on('window-all-closed', () => {})
 }

@@ -1,6 +1,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import { useEffect, useState } from 'react'
 import { ACTS, COLORS, ICON_LIST, MEDIA_OPS, PATTERNS, REGIONS, colorOf, freshKey } from '../../shared/constants'
+import { hotkeyLabel } from '../../shared/hotkeys'
 import type { Action, DeskKey, Profile } from '../../shared/types'
 import { Icon, IconButton, type SymbolId } from './Icon'
 import { KeyFace, keyStyle } from './DeskMap'
@@ -15,6 +16,13 @@ function ActionTile({ type, name, icon, selected, bg, fg, pick }: { type: Action
 const MODIFIERS = ['Ctrl', 'Shift', 'Alt', 'Win'] as const
 const MOD_ICONS: Record<string, SymbolId> = { Ctrl: 'ctrl', Shift: 'shift', Alt: 'alt', Win: 'win' }
 function HotkeyInput({ keys, update }: { keys: string[]; update: (keys: string[]) => void }) {
+  const [layout, setLayout] = useState<ReadonlyMap<string, string>>()
+  useEffect(() => {
+    let active = true
+    const keyboard = (navigator as Navigator & { keyboard?: { getLayoutMap(): Promise<ReadonlyMap<string, string>> } }).keyboard
+    keyboard?.getLayoutMap().then(map => { if (active) setLayout(map) }).catch(() => {})
+    return () => { active = false }
+  }, [])
   const [recording, setRecording] = useState(false)
   const [modifiers, setModifiers] = useState<string[]>([])
   useEffect(() => {
@@ -22,18 +30,18 @@ function HotkeyInput({ keys, update }: { keys: string[]; update: (keys: string[]
     const record = (event: KeyboardEvent): void => {
       event.preventDefault()
       event.stopPropagation()
-      if (event.key === 'Escape') { setRecording(false); return }
-      if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return
+      if (event.code === 'Escape') { setRecording(false); return }
+      if (/^(Control|Shift|Alt|Meta)(Left|Right)$/.test(event.code)) return
       const mods = MODIFIERS.filter(m => modifiers.includes(m) || (m === 'Ctrl' && event.ctrlKey) || (m === 'Shift' && event.shiftKey) || (m === 'Alt' && event.altKey) || (m === 'Win' && event.metaKey))
-      const aliases: Record<string, string> = { ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right' }
-      const main = aliases[event.key] ?? (event.key.length === 1 ? event.key.toUpperCase() : event.key)
+      if (!event.code || event.code === 'Unidentified') return
+      const main = event.code
       update([...mods, main]); setRecording(false)
     }
     window.addEventListener('keydown', record, true)
     return () => window.removeEventListener('keydown', record, true)
   }, [recording, modifiers, update])
   return <div className="hotkey-editor"><div className="hotkey-caps">
-    {keys.map((key, index) => <span className="keycap" title={key} key={`${key}-${index}`}>{key === 'Shift' || key === 'Win' ? <Icon name={MOD_ICONS[key]} size={18} /> : key}</span>)}
+    {keys.map((key, index) => <span className="keycap" title={key} key={`${key}-${index}`}>{key === 'Shift' || key === 'Win' ? <Icon name={MOD_ICONS[key]} size={18} /> : hotkeyLabel(key, layout)}</span>)}
     <div className="grow" /><IconButton label={recording ? '記録を中止' : 'キーを記録'} aria-pressed={recording} className={`record-button ${recording ? 'recording' : ''}`} onClick={() => { setModifiers(keys.filter(k => MODIFIERS.some(m => m === k))); setRecording(!recording) }}><span className="record-dot" /></IconButton>
   </div>{recording && <div className="modifier-toggles">{MODIFIERS.map(mod => <IconButton key={mod} label={mod} icon={MOD_ICONS[mod]} aria-pressed={modifiers.includes(mod)} style={{ background: modifiers.includes(mod) ? '#EDEDED' : '#262626', color: modifiers.includes(mod) ? '#121212' : '#BDBDBD' }} onClick={() => setModifiers(previous => previous.includes(mod) ? previous.filter(m => m !== mod) : [...previous, mod])} />)}</div>}</div>
 }

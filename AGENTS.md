@@ -3,7 +3,7 @@
 机を叩くと、割り当てたショートカットが動く。JPHACKS 作品。
 
 - 机の 4 領域（左上 / 右上 / 左下 / 右下）× 回数（1 回 / 2 回）× 強さ（弱 / 強）= 16 キー
-- ESP32 + ピエゾ 4 個が判定し、USB シリアルで PC に送る（ハードは未購入。実機なしで動くこと）
+- XIAO ESP32S3 + ピエゾ 4 個が判定し、USB シリアルで PC に送る（ハードは購入済み。開発環境に実機はないので、実機なしでも動くこと）。任意のテーブルで成り立たせる
 - PC アプリは Windows 専用の Electron 常駐アプリ（設定画面は React）
 
 ## 役割
@@ -19,6 +19,8 @@
 | `docs/protocol.md` | ESP32 ⇔ PC のシリアルプロトコル |
 | `docs/design/settings.dc.html` | 設定画面のデザイン（承認済み）。色・寸法・アイコンの SVG パスはここから写す |
 | `docs/design/calibrate.dc.html` | キャリブレーション画面のデザイン（承認済み） |
+| `docs/circuit.html` | 入力回路（チームの回路図）。**回路は変えない**。ピン・部品・受入試験はここが正 |
+| `docs/hardware-test.md` | Windows の PC で実機をつないで確かめる手順 |
 | `docs/tasks/NN-*.md` | 実装タスク。完了条件まで満たすこと |
 
 `*.dc.html` は独自テンプレート形式のデザインモックで、そのままでは動かない。`<script type="text/x-dc">` 内の定数（`IC`, `COLORS`, `ACTS` など）と、テンプレート部のインラインスタイルを React + Tailwind に移植する。

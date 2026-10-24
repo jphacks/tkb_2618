@@ -46,7 +46,7 @@ export class MockDevice extends DisconnectedDevice {
         const candidates = this.candidates()
         const index = candidates[Math.floor(Math.random() * candidates.length)] ?? Math.floor(Math.random() * 16)
         this.taps.emit({ t: 'tap', region: Math.floor(index / 4) as Region,
-          count: index % 4 < 2 ? 1 : 2, strength: index % 2 === 0 ? 'weak' : 'strong', confidence: 0.9 })
+          count: index % 4 < 2 ? 1 : 2, strength: index % 2 === 0 ? 'weak' : 'strong', confidence: 0.9, ...(Math.random() < 0.15 ? { sat: true as const } : {}) })
       }
     }, 4000)
   }
@@ -66,6 +66,9 @@ export class MockDevice extends DisconnectedDevice {
     if (this.mode !== 'calibrate') return
     const peaks: CalHit['peaks'] = [35, 32, 40, 38]
     peaks[region] = (strength === 'weak' ? 230 : 900) + Math.floor(Math.random() * 60)
-    this.hits.emit({ t: 'hit', peaks, ms: 18 })
+    // Region zero models a metal table: the adjacent channel is stronger.
+    if (region === 0) peaks[1] = Math.round(peaks[0] * 1.3)
+    this.hits.emit({ t: 'hit', peaks, ms: 15, ring: 110 + Math.floor(Math.random() * 30),
+      ...(Math.random() < 0.15 ? { sat: true as const } : {}) })
   }
 }

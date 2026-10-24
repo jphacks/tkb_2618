@@ -18,14 +18,14 @@ export type Config = {
 }
 export type Region = 0 | 1 | 2 | 3
 export type Strength = 'weak' | 'strong'
-export type TapEvent = { t: 'tap'; region: Region; count: 1 | 2; strength: Strength; confidence: number }
+export type TapEvent = { t: 'tap'; region: Region; count: 1 | 2; strength: Strength; confidence: number; sat?: true }
 export type DeviceStatus =
   | { state: 'disconnected' | 'connecting' }
   | { state: 'connected'; port: string; fw: string; cal: boolean }
 export type Channels = [number, number, number, number]
 export type Noise = { t: 'noise'; peak: Channels; rms: Channels }
-export type CalHit = { t: 'hit'; peaks: Channels; ms: number }
-export type Calibration = { threshold: Channels; strongMin: Channels; doubleWindowMs: number; refractoryMs: number }
+export type CalHit = { t: 'hit'; peaks: Channels; ms: number; ring: number; sat?: true }
+export type Calibration = { threshold: Channels; strongMin: Channels; doubleWindowMs: number; refractoryMs: number; templates?: [Channels, Channels, Channels, Channels] }
 export type Hello = { t: 'hello'; fw: string; cal: boolean }
 export type Ack = { t: 'ack'; of: 'set_cal' | 'mode'; ok: boolean; err?: string }
 export type DeviceMessage = Hello | TapEvent | Noise | CalHit | Ack

@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { calculateCalibration, type Samples } from '../../shared/calibration'
+import { advanceCalibration, initialCalibrationProgress } from '../../shared/calibration'
 import { REGIONS } from '../../shared/constants'
 import type { Noise, Region } from '../../shared/types'
 import { Icon, IconButton } from './Icon'
 
-type Progress = { phase: 'noise' | 'tap' | 'done' | 'error'; step: number; samples: Samples; errorRegion: number | null; fire: number }
-const initial = (): Progress => ({ phase: 'noise', step: 0, samples: Array.from({ length: 8 }, () => []), errorRegion: null, fire: 0 })
 export function Calibration({ close, guard }: { close: () => void; guard: (work: Promise<unknown>) => void }) {
-  const [progress, setProgress] = useState<Progress>(initial)
+  const [progress, setProgress] = useState(initialCalibrationProgress)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const noise = useRef<Noise | null>(null)
@@ -15,7 +13,7 @@ export function Calibration({ close, guard }: { close: () => void; guard: (work:
   const startNoise = async (): Promise<void> => {
     const run = ++generation.current
     noise.current = null
-    setError(null); setProgress(initial())
+    setError(null); setProgress(initialCalibrationProgress())
     try {
       await window.deskapi.calStart()
       const measured = await window.deskapi.calMeasureNoise()
@@ -29,19 +27,7 @@ export function Calibration({ close, guard }: { close: () => void; guard: (work:
     }
   }
   useEffect(() => {
-    const unsubscribe = window.deskapi.onCalHit(hit => setProgress(previous => {
-      if (previous.phase !== 'tap') return previous
-      const { step } = previous, region = Math.floor(step / 2)
-      if (hit.peaks.indexOf(Math.max(...hit.peaks)) !== region) return previous
-      const samples = previous.samples.map(s => [...s])
-      samples[step].push(hit.peaks[region])
-      if (samples[step].length < 3) return { ...previous, samples, errorRegion: null, fire: previous.fire + 1 }
-      if (step % 2 === 1 && Math.max(...samples[step - 1]) >= Math.min(...samples[step])) {
-        samples[step - 1] = []; samples[step] = []
-        return { ...previous, step: step - 1, samples, errorRegion: region, fire: previous.fire + 1 }
-      }
-      return { ...previous, samples, step: step + 1, phase: step === 7 ? 'done' : 'tap', errorRegion: null, fire: previous.fire + 1 }
-    }))
+    const unsubscribe = window.deskapi.onCalHit(hit => setProgress(previous => advanceCalibration(previous, hit, noise.current)))
     void startNoise()
     return () => { generation.current++; unsubscribe(); guard(window.deskapi.calCancel()) }
   }, [])
@@ -54,7 +40,7 @@ export function Calibration({ close, guard }: { close: () => void; guard: (work:
   const save = async (): Promise<void> => {
     if (!noise.current) return
     setBusy(true)
-    try { await window.deskapi.calSave(calculateCalibration(noise.current, samples)); close() } finally { setBusy(false) }
+    try { await window.deskapi.calSave(samples); close() } finally { setBusy(false) }
   }
   return <div className="calibration-page" title={error ?? undefined}>
     <div className="calibration-header"><div className="progress-segments" role="progressbar" aria-label="進み具合" aria-valuemin={0} aria-valuemax={8} aria-valuenow={step}>

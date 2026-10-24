@@ -2,6 +2,7 @@
 
 #include <ArduinoJson.h>
 #include <cstring>
+#include <cmath>
 
 namespace deskapi {
 namespace {
@@ -129,7 +130,7 @@ size_t writeJson(const JsonDocument& doc, char* output, size_t capacity) {
 Command parseCommand(const char* json, size_t length) {
     Command command{};
     if (length == 0 || length > kMaxLine || !JsonSyntax(json, length).valid()) return command;
-    StaticJsonDocument<1024> doc;
+    StaticJsonDocument<2048> doc;
     if (deserializeJson(doc, json, length, DeserializationOption::NestingLimit(4)) || !doc.is<JsonObject>()) return command;
     if (!doc["t"].is<const char*>()) return command;
     if (equals(doc["t"], "ping")) {
@@ -138,9 +139,10 @@ Command parseCommand(const char* json, size_t length) {
         command.type = CommandType::Invalid;
         command.of = "mode";
         command.error = "invalid_mode";
-        if (equals(doc["mode"], "run") || equals(doc["mode"], "calibrate")) {
+        if (equals(doc["mode"], "run") || equals(doc["mode"], "calibrate") || equals(doc["mode"], "raw")) {
             command.type = CommandType::Mode;
-            command.mode = equals(doc["mode"], "run") ? Mode::Run : Mode::Calibrate;
+            command.mode = equals(doc["mode"], "run") ? Mode::Run :
+                (equals(doc["mode"], "raw") ? Mode::Raw : Mode::Calibrate);
         }
     } else if (equals(doc["t"], "measure_noise")) {
         // Only set_cal/mode have acknowledgements in protocol v1.
@@ -158,14 +160,30 @@ Command parseCommand(const char* json, size_t length) {
             cal["doubleWindowMs"].is<uint32_t>() && cal["refractoryMs"].is<uint32_t>()) {
             command.cal.doubleWindowMs = cal["doubleWindowMs"];
             command.cal.refractoryMs = cal["refractoryMs"];
-            if (validCalibration(command.cal)) command.type = CommandType::SetCalibration;
+            if (cal.containsKey("templates")) {
+                auto rows = cal["templates"];
+                if (!rows.is<JsonArrayConst>() || rows.size() != kChannels) return command;
+                command.cal.hasTemplates = true;
+                for (unsigned r = 0; r < kChannels; ++r) {
+                    if (!readArray(rows[r], command.cal.templates[r])) return command;
+                }
+            }
+            if (validCalibration(command.cal)) {
+                if (command.cal.hasTemplates) for (auto& row : command.cal.templates) {
+                    double norm = 0;
+                    for (float v : row) norm += static_cast<double>(v) * v;
+                    for (float& v : row) v /= std::sqrt(norm);
+                }
+                command.type = CommandType::SetCalibration;
+            }
         }
     }
     return command;
 }
 
 size_t encodeCalibration(const Calibration& cal, char* output, size_t capacity) {
-    StaticJsonDocument<768> doc;
+    if (!validCalibration(cal)) return 0;
+    StaticJsonDocument<2048> doc;
     doc["t"] = "set_cal";
     JsonObject object = doc.createNestedObject("cal");
     JsonArray threshold = object.createNestedArray("threshold");
@@ -173,6 +191,15 @@ size_t encodeCalibration(const Calibration& cal, char* output, size_t capacity) 
     for (unsigned i = 0; i < kChannels; ++i) {
         threshold.add(cal.threshold[i]);
         strong.add(cal.strongMin[i]);
+    }
+    if (cal.hasTemplates) {
+        JsonArray rows = object.createNestedArray("templates");
+        for (const auto& row : cal.templates) {
+            JsonArray values = rows.createNestedArray();
+            double norm = 0;
+            for (float v : row) norm += static_cast<double>(v) * v;
+            for (float v : row) values.add(v / std::sqrt(norm));
+        }
     }
     object["doubleWindowMs"] = cal.doubleWindowMs;
     object["refractoryMs"] = cal.refractoryMs;
@@ -205,6 +232,17 @@ size_t encodeEvent(const Event& event, char* output, size_t capacity) {
         JsonArray peaks = doc.createNestedArray("peaks");
         for (uint16_t peak : event.peaks) peaks.add(peak);
         doc["ms"] = event.ms;
+        doc["ring"] = event.ring;
+        break;
+    }
+    case EventType::Raw: {
+        doc["t"] = "raw";
+        JsonArray minimum = doc.createNestedArray("min");
+        JsonArray maximum = doc.createNestedArray("max");
+        for (unsigned i = 0; i < kChannels; ++i) {
+            minimum.add(event.rawMin[i]);
+            maximum.add(event.rawMax[i]);
+        }
         break;
     }
     case EventType::Noise: {
@@ -218,6 +256,7 @@ size_t encodeEvent(const Event& event, char* output, size_t capacity) {
         break;
     }
     }
+    if ((event.type == EventType::Tap || event.type == EventType::Hit) && event.saturated) doc["sat"] = true;
     return writeJson(doc, output, capacity);
 }
 

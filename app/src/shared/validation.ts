@@ -36,5 +36,9 @@ export function isConfig(v: unknown): v is Config {
 export function isCalibration(v: unknown): v is Calibration {
   return object(v) && ['threshold', 'strongMin'].every(k => Array.isArray(v[k]) && v[k].length === 4
     && v[k].every((n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 4095))
-    && v.doubleWindowMs === 320 && v.refractoryMs === 70
+    && typeof v.doubleWindowMs === 'number' && Number.isInteger(v.doubleWindowMs) && v.doubleWindowMs > 0 && v.doubleWindowMs <= 0xffffffff
+    && typeof v.refractoryMs === 'number' && Number.isInteger(v.refractoryMs) && v.refractoryMs >= 0 && v.refractoryMs <= 0xffffffff
+    && (v.templates === undefined || (Array.isArray(v.templates) && v.templates.length === 4 && v.templates.every(row =>
+      Array.isArray(row) && row.length === 4 && row.every(n => typeof n === 'number' && Number.isFinite(n))
+      && Number.isFinite(Math.hypot(...row)) && Math.hypot(...row) > 0)))
 }

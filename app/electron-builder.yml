@@ -4,6 +4,7 @@ directories:
   output: release
 files:
   - out/**/*
+  - resources/**/*
   - package.json
 win:
   target:
@@ -13,3 +14,7 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+
+asarUnpack:
+  - "node_modules/@serialport/**"
+npmRebuild: false

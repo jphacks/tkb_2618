@@ -1,4 +1,5 @@
-import type { CalHit, Calibration, Config, DeviceStatus, Noise, Region, Strength, TapEvent } from './types'
+import type { Samples } from './calibration'
+import type { CalHit, Config, DeviceStatus, Noise, Region, Strength, TapEvent } from './types'
 
 export const IPC = {
   getConfig: 'config:get', saveConfig: 'config:save', configChanged: 'config:changed',
@@ -24,7 +25,7 @@ export interface DeskApi {
   calStart(): Promise<void>
   calMeasureNoise(): Promise<Noise>
   onCalHit(callback: (hit: CalHit) => void): Unsubscribe
-  calSave(calibration: Calibration): Promise<void>
+  calSave(samples: Samples): Promise<void>
   calCancel(): Promise<void>
   calMockHit?: (region: Region, strength: Strength) => Promise<void>
 }

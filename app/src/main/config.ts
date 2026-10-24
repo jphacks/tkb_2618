@@ -1,12 +1,13 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DEFAULT_CONFIG } from '../shared/constants'
+import { migrateHotkeys } from '../shared/hotkeys'
 import { isConfig } from '../shared/validation'
 import type { Config } from '../shared/types'
 
 export class ConfigStore {
   private queue: Promise<void> = Promise.resolve()
-  private value: Config = structuredClone(DEFAULT_CONFIG)
+  private value: Config = migrateHotkeys(DEFAULT_CONFIG)
   constructor(private readonly directory: string) {}
   get config(): Config { return structuredClone(this.value) }
   async load(): Promise<Config> {
@@ -21,7 +22,7 @@ export class ConfigStore {
     try {
       const parsed: unknown = JSON.parse(raw)
       if (!isConfig(parsed)) throw new Error('設定の形式が正しくありません')
-      this.value = parsed
+      this.value = migrateHotkeys(parsed)
     } catch {
       await rename(file, join(this.directory, `config.broken-${new Date().toISOString().replace(/[:.]/g, '-')}.json`))
       await this.save(this.value)
