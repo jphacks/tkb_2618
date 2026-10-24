@@ -27,10 +27,10 @@
 | 04 ファームウェア | ✅ `pio run` / native テスト通過 |
 | 05 hotkey を物理キーで記録（JIS） | ✅ `KeyboardEvent.code` で記録し、Set 1 スキャンコード（`KEYEVENTF_SCANCODE`）で送る。旧形式の移行、`npmRebuild: false`。test 14 件通過 |
 | 06 XIAO 対応 | ✅ `xiao_esp32s3` env（USB CDC）。この書の回路の節は PM の誤りで、08 が正 |
-| 07 任意のテーブル（プロトコル v1.1） | **Codex が実行中**。`app/` と `firmware/` の両方を触る |
+| 07 任意のテーブル（プロトコル v1.1） | ✅ 学習した型での領域判定、`ring` → `refractoryMs`、飽和打の棄却。app test 21 件・native 30 件通過。モックでキャリブレーション完走・保存を画面で確認（飽和のモック打は数えない） |
 | 08 ファームを正式な回路に合わせる | ✅ ピン 1/2/4/5、`raw` モード、`sat`（FW-007）、README を回路図どおりに。ビルド 3 env・native 27 件通過 |
 
-次にやること: 07 の確認（テスト・モック画面でキャリブレーション完走） → ユーザーに確認してコミット・プッシュ → ユーザーが Windows で `docs/hardware-test.md`。
+次にやること: ユーザーが Windows の PC で `git switch yub4-arema` → `docs/hardware-test.md` の順に確かめる。結果（□ の可否・ログ）を受けて PM が直すタスクを書く。
 
 ## 開発環境のメモ（WSL）
 
