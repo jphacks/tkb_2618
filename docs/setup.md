@@ -19,10 +19,9 @@ Windows 11 の PC で、このリポジトリの開発（アプリ・tap-collect
 ```powershell
 git clone https://github.com/jphacks/tkb_2618.git
 cd tkb_2618
-git switch yub4-arema
 ```
 
-作業ブランチは `yub4-arema`。`jphacks/tkb_2628` は別チームのリポジトリなので触らない。
+作業は issue ごとに `main` から切ったブランチで行う（名前の付け方は `docs/HANDOFF.md` の「進め方」）。`jphacks/tkb_2628` は別チームのリポジトリなので触らない。
 
 ## 3. 依存を入れる
 
@@ -31,7 +30,6 @@ git switch yub4-arema
 ```powershell
 cd app;                npm ci
 cd ..\tools\tap-collect; npm ci
-cd ..\..\video;          npm ci   # デモ動画を作り直すときだけ
 ```
 
 Electron 本体が入らなかったとき（`npm run dev` で「Electron failed to install correctly」）は `app/` で `node node_modules/electron/install.js` を実行する。
@@ -56,8 +54,6 @@ $env:DESKAPI_MOCK = 1; npm run dev   # 実機なしで画面確認（モック�
 | 実機のログ（約 320 MB） | `tools/tap-collect/tap-logs/` | 同じ場所にコピーする（USB・クラウドドライブ）。`docs/HANDOFF.md` の採点結果はこのログのもの |
 | アプリの設定・校正値 | `%APPDATA%\DeskAPI\config.json` | 同じ場所にコピーする。机が変わるならコピーせず、キャリブレーションし直す |
 | 採点の出力 | `tools/tap-collect/scores/` | 移さなくてよい（score.mjs で作り直せる） |
-| デモ動画の実機の映像 | `video/public/footage/IMG_4968.mp4` | 元の `IMG_4968.MOV` を H.264 の MP4 にして置く（`ffmpeg -i IMG_4968.MOV -c:v libx264 -crf 18 -c:a aac IMG_4968.mp4`） |
-| 書き出した動画 | `video/out/` | 移さなくてよい（`npm run render` で作り直せる） |
 | 個人の資料 | `.orca/` | 移さない（コミットもしない） |
 
 Claude Code のメモリ（`~/.claude/projects/...`）は PC ごと。引き継ぐべき指示は `CLAUDE.md` に書いてある。
