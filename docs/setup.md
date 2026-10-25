@@ -19,10 +19,9 @@ Windows 11 の PC で、このリポジトリの開発（アプリ・tap-collect
 ```powershell
 git clone https://github.com/jphacks/tkb_2618.git
 cd tkb_2618
-git switch yub4-arema
 ```
 
-作業ブランチは `yub4-arema`。`jphacks/tkb_2628` は別チームのリポジトリなので触らない。
+作業は issue ごとに `main` から切ったブランチで行う（名前の付け方は `docs/HANDOFF.md` の「進め方」）。`jphacks/tkb_2628` は別チームのリポジトリなので触らない。
 
 ## 3. 依存を入れる
 
