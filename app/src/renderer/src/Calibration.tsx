@@ -49,7 +49,12 @@ export function Calibration({ status, close, guard }: { status: DeviceStatus; cl
       }
       setNotice(null)
       let next = current.current
-      for (const hit of usable) next = advanceCalibration(next, hit, noise.current)
+      try {
+        for (const hit of usable) next = advanceCalibration(next, hit, noise.current)
+      } catch (e) {
+        fail(e instanceof Error ? e.message : String(e))
+        return
+      }
       commit(next)
       await sleep(400)
     }

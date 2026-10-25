@@ -133,3 +133,15 @@ test('UI retries multiple confused regions in ascending order and keeps complete
   }
   assert.equal(progress.phase,'done');assert.equal(progress.step,4)
 })
+
+test('calibration progress propagates calculation errors for the screen to display', () => {
+  const { advanceCalibration, initialCalibrationProgress } = require(process.env.DESKAPI_TEST_OUTPUT + '/shared/calibration.js')
+  let progress = { ...initialCalibrationProgress(), phase: 'tap' }
+  const noisy = { ...noise, peak: [3000, 3000, 3000, 3000] }
+  const data = samples()
+  for (let step = 0; step < 4; step++) for (let i = 0; i < 3; i++) {
+    if (step === 3 && i === 2) {
+      assert.throws(() => advanceCalibration(progress, data[step][i], noisy), /ノイズが大きすぎます/)
+    } else progress = advanceCalibration(progress, data[step][i], noisy)
+  }
+})

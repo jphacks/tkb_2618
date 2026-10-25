@@ -7,6 +7,7 @@ export function useConfig() {
   const [error, setError] = useState<string | null>(null)
   const current = useRef<Config | null>(null)
   const dirty = useRef(false)
+  const pending = useRef(new Set<Config>())
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const queue = useRef<Promise<void>>(Promise.resolve())
   const fail = (e: unknown): void => { setError(e instanceof Error ? e.message : String(e)) }
@@ -14,13 +15,14 @@ export function useConfig() {
   const flush = (): Promise<void> => {
     clearTimeout(timer.current)
     if (dirty.current && current.current) {
-      const snapshot = current.current
+      const snapshot = structuredClone(current.current)
       dirty.current = false
+      pending.current.add(snapshot)
       queue.current = queue.current.catch(() => {}).then(() => window.deskapi.saveConfig(snapshot)).then(() => setError(null)).catch(e => {
-        if (current.current === snapshot) dirty.current = true
+        if (pending.current.size === 1) dirty.current = true
         fail(e)
         throw e
-      })
+      }).finally(() => { pending.current.delete(snapshot) })
     }
     return queue.current
   }
@@ -36,9 +38,12 @@ export function useConfig() {
     let alive = true
     const stopConfig = window.deskapi.onConfigChanged(next => {
       if (!alive) return
-      // Main-originated changes are profile switches and lock toggles. Preserve an edit
-      // still in the debounce window when a tray action arrives.
-      if (dirty.current && current.current) next = { ...current.current, activeProfileId: next.activeProfileId, locked: next.locked }
+      // Preserve local edits until their saves settle, and rebase queued snapshots on tray changes.
+      for (const snapshot of pending.current) {
+        snapshot.activeProfileId = next.activeProfileId
+        snapshot.locked = next.locked
+      }
+      if ((dirty.current || pending.current.size > 0) && current.current) next = { ...current.current, activeProfileId: next.activeProfileId, locked: next.locked }
       current.current = next
       setConfig(next)
     })

@@ -65,7 +65,7 @@ export function advanceCalibration(previous: CalibrationProgress, hit: CalHit, n
         for (const r of e.regions) samples[r] = []
         return { ...previous, samples, step: e.regions[0], errorRegion: e.regions[0], retryRegions: e.regions, fire: 0 }
       }
-      return { ...previous, phase: 'error' }
+      throw e
     }
   }
   const next = samples.findIndex(s => s.length < TAPS_PER_STEP)
