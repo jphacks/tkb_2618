@@ -22,6 +22,7 @@
 | `docs/design/calibrate.dc.html` | キャリブレーション画面のデザイン（承認済み） |
 | `docs/circuit.html` | 入力回路（チームの回路図）。**回路は変えない**。ピン・部品・受入試験はここが正 |
 | `docs/hardware-test.md` | Windows の PC で実機をつないで確かめる手順 |
+| `docs/setup.md` | 別の PC で開発を始める手順（入れるもの、`npm ci`、Git に入っていないもの） |
 | `docs/tasks/NN-*.md` | 実装タスク。完了条件まで満たすこと |
 
 `*.dc.html` は独自テンプレート形式のデザインモックで、そのままでは動かない。`<script type="text/x-dc">` 内の定数（`IC`, `COLORS`, `ACTS` など）と、テンプレート部のインラインスタイルを React + Tailwind に移植する。

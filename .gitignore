@@ -11,3 +11,6 @@ release/
 serial-log-*.txt
 tap-logs/
 tools/tap-collect/scores/
+
+# 依存は npm（package-lock.json）で入れる。pnpm で入れたときのロックファイルはコミットしない
+pnpm-lock.yaml
