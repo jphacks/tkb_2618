@@ -8,7 +8,7 @@
 
 ## 製品概要
 
-### 背景(製品開発のきっかけ、課題等）
+### 背景（製品開発のきっかけ、課題等）
 
 手がふさがっていても、PC を少しだけ操作したい場面があります。
 
@@ -46,11 +46,11 @@ PC 側は Windows の常駐アプリで、設定画面を閉じていても操�
 |---|---|
 | キー入力 | ショートカットキーを送る（例：Ctrl+C、スクリーンショット） |
 | アプリ | アプリやファイル、URL を開く |
-| メディア | 再生・停止、曲送り・曲戻し、音量、マイクのミュート |
+| メディア | 再生・一時停止、曲送り・曲戻し、音量、マイクのミュート |
 | コマンド | コマンドを実行する |
 | Webhook | 登録した URL に、叩いた場所・回数・時刻などを JSON で POST する |
 | プロファイル | キーの割り当て一式（作業・配信・ゲームなど）を切り替える |
-| ロック | 入力をロック / 解除する（ロックのキーは有効） |
+| ロック | DaaS の入力をロック / 解除する（ロックのキーは有効） |
 
 ![設定画面](docs/images/readme-settings.png)
 
@@ -62,13 +62,13 @@ PC 側は Windows の常駐アプリで、設定画面を閉じていても操�
 
 #### 2. 約 30 秒で机に合わせて調整できる
 
-机の材質や大きさ、センサーの位置によって振動の伝わり方は変わります。最初に 4 か所を 3 回ずつ叩くと、その机での振動の特徴と判定に使うしきい値を登録できます。場所ごとの特徴が分かれていれば、センサーが領域の真下になくても判別できます。見分けにくい場所は画面に赤く表示して叩き直せます。
+机の材質や大きさ、センサーの位置によって振動の伝わり方は変わります。最初に 4 か所を 3 回ずつ叩くと、その机での振動の特徴と判定に使うしきい値を登録できます。場所ごとの特徴が分かれていれば、センサーが領域の真下になくても判別できます。見分けにくい場所があると、アプリがその場所を画面に赤く表示し、叩き直しを求めます。
 
 #### 3. 安価な汎用部品で PC や Web サービスと連携できる
 
 ハードウェアには安価な圧電素子と汎用マイコンを使い、入力回路も抵抗・コンデンサ・オペアンプなどの汎用部品で構成しています。
 
-操作の割り当ては設定画面でドラッグするだけで、キー入力からコマンド、Webhook まで用途に合わせて変えられます。Webhook を受け取る処理を用意すれば、外部サービスとの連携にも使えます。
+操作の種類をキーにドラッグして割り当て、実行するショートカットやコマンド、Webhook の送信先などを設定します。Webhook を受け取る処理を用意すれば、外部サービスとの連携にも使えます。
 
 ### 解決出来ること
 
@@ -119,9 +119,9 @@ PC 側は Windows の常駐アプリで、設定画面を閉じていても操�
 
 #### ハッカソンで開発した独自機能・技術
 
-* 叩いた場所と回数の検出器（[`app/src/main/protocols/detector.ts`](app/src/main/protocols/detector.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）：4 ch の振幅の比率を、キャリブレーションで登録した場所ごとのパターンと比較します。同じ場所への 320 ms 以内の 2 打目は 2 回として数え、判定の信頼度が低い打撃や飽和と判定した打撃では操作を実行しません
-* キャリブレーション（[`app/src/shared/calibration.ts`](app/src/shared/calibration.ts)、[`app/src/shared/tap-procedure.ts`](app/src/shared/tap-procedure.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）：静止時の振動と 4 か所 × 3 打から、ch ごとのしきい値・場所ごとのパターン・余韻を無視する時間を計算し、区別しにくい場所の再登録を求めます
-* 記録と採点のツール（[`tools/tap-collect`](tools/tap-collect)、[6530c8a](https://github.com/jphacks/tkb_2618/commit/6530c8a)）：叩き方ごとの生の値を記録し、アプリと同じ検出・キャリブレーションのコードで、場所と回数が合っているか採点します
+* 叩いた場所と回数の検出器：4 ch の振幅の比率を、キャリブレーションで登録した場所ごとのパターンと比較します。同じ場所への 320 ms 以内の 2 打目は 2 回として数え、飽和と判定した打撃では操作を実行しません（[`detector.ts`](app/src/main/protocols/detector.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
+* キャリブレーション：静止時の振動と 4 か所 × 3 打から、ch ごとのしきい値・場所ごとのパターン・余韻を無視する時間を計算し、区別しにくい場所の再登録を求めます（[`calibration.ts`](app/src/shared/calibration.ts)、[`tap-procedure.ts`](app/src/shared/tap-procedure.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
+* 記録と採点のツール：叩き方ごとの生の値を記録し、アプリと同じ検出・キャリブレーションのコードで、場所と回数が合っているか採点します（[`tools/tap-collect`](tools/tap-collect)、[6530c8a](https://github.com/jphacks/tkb_2618/commit/6530c8a)）
 * 生の値を送るファーム（[`firmware/xiao-stream`](firmware/xiao-stream)、[508970c](https://github.com/jphacks/tkb_2618/commit/508970c)）と、それを読むアプリ側のアダプタ（[`app/src/main/protocols/`](app/src/main/protocols/)、[769d0bb](https://github.com/jphacks/tkb_2618/commit/769d0bb)）
 * Hack Day 終了時点のコードには、タグ [`hackday-code-freeze`](https://github.com/jphacks/tkb_2618/tree/hackday-code-freeze) を付けています
 
