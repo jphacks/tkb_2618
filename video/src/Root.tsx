@@ -23,7 +23,7 @@ const SCENES: { component: ComponentType; frames: number }[] = [
   { component: Calibration, frames: 180 },
   { component: End, frames: 120 }
 ]
-/** Each scene fades in over the last frames of the one before it. */
+/** Scenes overlap by this many frames: the outgoing one fades out over the first half, the incoming one fades in over the second. */
 const FADE = 8
 const TOTAL = SCENES.reduce((sum, s) => sum + s.frames, 0)
 /** Every string on screen, so the fonts for all of them are loaded before the first frame. */
@@ -37,16 +37,22 @@ const TEXT = [
   ...REGIONS, ...ACTS.map(a => a.name), ...DEFAULT_CONFIG.profiles.map(p => p.name)
 ].join(' ')
 
-function FadeIn({ component: Scene, first }: { component: ComponentType; first: boolean }) {
+function Fade({ component: Scene, duration, first, last }: { component: ComponentType; duration: number; first: boolean; last: boolean }) {
   const frame = useCurrentFrame()
-  return <AbsoluteFill style={{ opacity: first ? 1 : interpolate(frame, [0, FADE], [0, 1], { extrapolateRight: 'clamp' }) }}><Scene /></AbsoluteFill>
+  const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
+  const fadeIn = first ? 1 : interpolate(frame, [FADE / 2, FADE], [0, 1], clamp)
+  const fadeOut = last ? 1 : interpolate(frame, [duration - FADE, duration - FADE / 2], [1, 0], clamp)
+  return <AbsoluteFill style={{ opacity: Math.min(fadeIn, fadeOut) }}><Scene /></AbsoluteFill>
 }
 
 function Movie() {
   return <Fonts text={TEXT}><AbsoluteFill style={{ background: BG }}><Series>
-    {SCENES.map((scene, i) => <Series.Sequence key={i} durationInFrames={scene.frames + (i < SCENES.length - 1 ? FADE : 0)} offset={i === 0 ? 0 : -FADE}>
-      <FadeIn component={scene.component} first={i === 0} />
-    </Series.Sequence>)}
+    {SCENES.map((scene, i) => {
+      const last = i === SCENES.length - 1, duration = scene.frames + (last ? 0 : FADE)
+      return <Series.Sequence key={i} durationInFrames={duration} offset={i === 0 ? 0 : -FADE}>
+        <Fade component={scene.component} duration={duration} first={i === 0} last={last} />
+      </Series.Sequence>
+    })}
   </Series></AbsoluteFill></Fonts>
 }
 
