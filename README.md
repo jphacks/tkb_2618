@@ -32,7 +32,7 @@ DaaS（Desk as a Service）は机の裏に貼った 4 個のピエゾ（圧電�
 
 PC 側は Windows の常駐アプリで、設定画面を閉じていても操作できます。システム全体は「振動を拾う → 場所と回数を見分ける → 操作を実行する」の流れで動きます。
 
-| 処理 | 担当 | すること |
+| 処理 | 担当 | 機能 |
 |---|---|---|
 | 振動の取得 | ピエゾ 4 個 ＋ 入力回路 ＋ XIAO ESP32S3 | 4 個のセンサーの値を毎秒 4000 回読み取り、USB シリアルで PC に送る |
 | 場所と回数の判定 | PC アプリの検出器 | 波形から打撃を検出し、4 個のセンサーの反応をキャリブレーションで登録した特徴と比べて場所を決め、回数を数える |
@@ -113,17 +113,16 @@ PC 側は Windows の常駐アプリで、設定画面を閉じていても操�
 * Seeed Studio XIAO ESP32S3
 * 圧電サウンダー 村田製作所 7BB-27-4L0 × 4
 * オペアンプ NJU7043D × 2（入力回路：[回路図](docs/circuit.html)）
-* Windows 10 / 11 の PC
-
+* Windows 11 の PC
+え、
 ### 独自技術
 
 #### ハッカソンで開発した独自機能・技術
 
-* 叩いた場所と回数の検出器：4 ch の振幅の比率を、キャリブレーションで登録した場所ごとのパターンと比較します。同じ場所への 320 ms 以内の 2 打目は 2 回として数え、飽和と判定した打撃では操作を実行しません（[`detector.ts`](app/src/main/protocols/detector.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
-* キャリブレーション：静止時の振動と 4 か所 × 3 打から、ch ごとのしきい値・場所ごとのパターン・余韻を無視する時間を計算し、区別しにくい場所の再登録を求めます（[`calibration.ts`](app/src/shared/calibration.ts)、[`tap-procedure.ts`](app/src/shared/tap-procedure.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
-* 記録と採点のツール：叩き方ごとの生の値を記録し、アプリと同じ検出・キャリブレーションのコードで、場所と回数が合っているか採点します（[`tools/tap-collect`](tools/tap-collect)、[6530c8a](https://github.com/jphacks/tkb_2618/commit/6530c8a)）
+* 叩いた場所と回数の検出器：4 ch の振幅の比率を、キャリブレーションで登録した場所ごとのパターンと比較します。同じ場所への 320 ms 以内の 2 打目は 2 回として数え、飽和と判定した打撃では実行処理を避けています（[`detector.ts`](app/src/main/protocols/detector.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
+* キャリブレーション：静止時の振動と 4 か所 × 3 打から、ch ごとのしきい値・場所ごとのパターン・余韻を無視する時間を計算し、区別しにくい場所の再登録を求めることで、机の素材や柱の配置などに対応します。（[`calibration.ts`](app/src/shared/calibration.ts)、[`tap-procedure.ts`](app/src/shared/tap-procedure.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
+* 記録と採点のツール：叩き方ごとの生の値を記録し、アプリと同じ検出・キャリブレーションのコードで、場所と回数が合っているか採点し、キャリブレーションシステムの改善が可能な開発用toolです。（[`tools/tap-collect`](tools/tap-collect)、[6530c8a](https://github.com/jphacks/tkb_2618/commit/6530c8a)）
 * 生の値を送るファーム（[`firmware/xiao-stream`](firmware/xiao-stream)、[508970c](https://github.com/jphacks/tkb_2618/commit/508970c)）と、それを読むアプリ側のアダプタ（[`app/src/main/protocols/`](app/src/main/protocols/)、[769d0bb](https://github.com/jphacks/tkb_2618/commit/769d0bb)）
-* Hack Day 終了時点のコードには、タグ [`hackday-code-freeze`](https://github.com/jphacks/tkb_2618/tree/hackday-code-freeze) を付けています
 
 ## リポジトリの構成
 
