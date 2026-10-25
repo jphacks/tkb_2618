@@ -109,16 +109,16 @@ export function Calibration({ status, close, guard }: { status: DeviceStatus; cl
   }
   return <div className="calibration-page">
     <div className="calibration-header"><div className="progress-segments" role="progressbar" aria-label="進み具合" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={step}>
-      {STEPS.map((_, i) => <span key={i} style={{ background: phase === 'done' || i < step ? '#EDEDED' : phase === 'tap' && i === step ? '#2214D6' : '#2A2A2A' }} />)}
+      {STEPS.map((_, i) => <span key={i} style={{ background: phase === 'done' || i < step ? '#EDEDED' : phase === 'tap' && i === step ? '#03AED2' : '#2A2A2A' }} />)}
     </div><IconButton label="閉じる" icon="close" disabled={busy} onClick={() => guard(cancel())} /></div>
     <section aria-label="机" className="calibration-section"><div className="calibration-map-wrap">
       <div className="calibration-grid" style={{ opacity: phase === 'noise' || phase === 'error' ? 0.15 : 1 }}>{REGIONS.map((name, r) => {
         const active = phase === 'tap' && step === r, done = phase === 'done' || step > r, go = active && stage === 'go'
         return <button type="button" key={r} className="calibration-tile" disabled={!go || busy} aria-label={active ? `${name}を叩く（${hits}/${TAPS_PER_STEP}）` : name}
-          style={{ background: errorRegion === r ? '#D62413' : active ? '#2214D6' : '#1A1A1A', opacity: active && !go ? 0.45 : 1, cursor: go && window.deskapi.isMock ? 'pointer' : 'default' }}
+          style={{ background: errorRegion === r ? '#D12052' : active ? '#03AED2' : '#1A1A1A', opacity: active && !go ? 0.45 : 1, cursor: go && window.deskapi.isMock ? 'pointer' : 'default' }}
           onClick={() => { if (window.deskapi.calMockHit) guard(window.deskapi.calMockHit(r as Region)) }}>
           {active && <>{go && <span className="cal-breathe" />}{go && live > 0 && <span key={live} className="cal-ripple" />}<span className="cal-verb"><span>叩く</span></span>
-            <span className="cal-pips">{Array.from({ length: TAPS_PER_STEP }, (_, i) => <i key={i} style={{ background: i < hits ? '#FFFFFF' : 'transparent' }} />)}</span>
+            <span className="cal-pips">{Array.from({ length: TAPS_PER_STEP }, (_, i) => <i key={i} style={{ background: i < hits ? '#121212' : 'transparent' }} />)}</span>
             {go && <span className="cal-window" style={{ animationDuration: `${WINDOW_MS}ms` }} />}</>}
           {done && <span style={{ color: '#13D66A' }}><Icon name="check" size={36} /></span>}
         </button>

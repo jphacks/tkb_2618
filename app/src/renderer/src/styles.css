@@ -29,7 +29,7 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .device-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
 .device-dot.connecting { animation: dk-connecting 1s ease-in-out infinite; }
 .cal-control { position: relative; display: flex; }
-.cal-needed { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #D62413; top: 5px; right: 5px; pointer-events: none; }
+.cal-needed { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #D12052; top: 5px; right: 5px; pointer-events: none; }
 .desk-section { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 32px 0 0; overflow-x: auto; }
 .desk-grid { display: grid; grid-template-columns: 96px 96px 40px 96px 96px; grid-template-rows: 20px 96px 40px 96px; gap: 12px; flex-shrink: 0; padding: 6px; }
 .grid-dots { display: flex; align-items: center; justify-content: center; gap: 4px; }
@@ -73,7 +73,7 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .hotkey-caps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .keycap { min-width: 44px; height: 44px; padding: 0 12px; border-radius: 12px; background: #262626; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 14px; }
 .record-button { width: 44px; height: 44px; border-radius: 22px; }
-.record-dot { width: 14px; height: 14px; border-radius: 50%; background: #D62413; }
+.record-dot { width: 14px; height: 14px; border-radius: 50%; background: #D12052; }
 .recording .record-dot { animation: dk-connecting 1s ease-in-out infinite; }
 .modifier-toggles { display: flex; gap: 6px; margin-top: 12px; }
 .media-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
@@ -99,7 +99,7 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .setting-row select { height: 40px; border: 0; border-radius: 12px; background: #262626; color: #EDEDED; padding: 0 12px; max-width: 190px; }
 .toggle { width: 44px; height: 26px; border-radius: 13px; background: #333; padding: 4px; }
 .toggle i { display: block; width: 18px; height: 18px; background: #EDEDED; border-radius: 50%; transition: transform .12s ease; }
-.toggle[aria-checked='true'] { background: #2214D6; }
+.toggle[aria-checked='true'] { background: #03AED2; }
 .toggle[aria-checked='true'] i { transform: translateX(18px); }
 .calibration-page { display: flex; flex-direction: column; min-height: calc(100vh - 32px); margin-top: 32px; padding: 20px 40px 40px; }
 .calibration-header { display: flex; align-items: center; gap: 16px; }
@@ -109,13 +109,13 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .calibration-section { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; padding-top: 24px; }
 .calibration-map-wrap { position: relative; }
 .calibration-grid { display: grid; grid-template-columns: repeat(2, 240px); grid-template-rows: repeat(2, 190px); gap: 16px; }
-.calibration-tile { position: relative; border-radius: 36px; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 0; }
-.cal-breathe { position: absolute; inset: 0; border-radius: 36px; border: 3px solid #2214D6; animation: dk-breathe 1.8s ease-in-out infinite; pointer-events: none; }
-.cal-ripple { position: absolute; inset: 0; border-radius: 36px; border: 4px solid #FFFFFF; animation: cal-ripple .5s ease-out forwards; pointer-events: none; }
+.calibration-tile { position: relative; border-radius: 36px; color: #121212; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 0; }
+.cal-breathe { position: absolute; inset: 0; border-radius: 36px; border: 3px solid #03AED2; animation: dk-breathe 1.8s ease-in-out infinite; pointer-events: none; }
+.cal-ripple { position: absolute; inset: 0; border-radius: 36px; border: 4px solid #121212; animation: cal-ripple .5s ease-out forwards; pointer-events: none; }
 .cal-verb { display: flex; align-items: center; gap: 10px; height: 28px; pointer-events: none; }
 .cal-verb span { font-size: 18px; font-weight: 700; }
 .cal-pips { display: flex; gap: 8px; pointer-events: none; }
-.cal-pips i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #FFFFFF; }
+.cal-pips i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #121212; }
 .noise-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
 .noise-overlay span { font-size: 15px; font-weight: 700; }
 .noise-ring { animation: dk-fill 2s linear forwards; }
@@ -136,7 +136,7 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .device-dialog-backdrop { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .6); }
 .device-dialog { position: relative; width: 440px; max-width: calc(100vw - 32px); padding: 32px; border-radius: 24px; background: #1A1A1A; display: flex; flex-direction: column; gap: 16px; }
 .device-dialog > .icon-button { position: absolute; top: 16px; right: 16px; }
-.device-dialog-icon { width: 56px; height: 56px; border-radius: 28px; background: #D62413; color: #FFFFFF; display: flex; align-items: center; justify-content: center; }
+.device-dialog-icon { width: 56px; height: 56px; border-radius: 28px; background: #D12052; color: #FFFFFF; display: flex; align-items: center; justify-content: center; }
 .device-dialog h2 { margin: 0; font-size: 20px; font-weight: 700; }
 .device-dialog p { margin: 0; font-size: 14px; line-height: 1.7; color: #BDBDBD; }
 .device-dialog .dialog-actions { display: flex; gap: 8px; margin-top: 8px; }
@@ -144,5 +144,5 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .device-dialog .dialog-primary { background: #EDEDED; color: #121212; }
 .device-dialog .dialog-primary:hover { filter: brightness(1.12); }
 .device-dialog .dialog-secondary { background: #262626; color: #EDEDED; }
-.cal-window { position: absolute; left: 36px; right: 36px; bottom: 22px; height: 3px; border-radius: 2px; background: #FFFFFF; opacity: .7; transform-origin: left; animation: cal-window 5s linear forwards; pointer-events: none; }
+.cal-window { position: absolute; left: 36px; right: 36px; bottom: 22px; height: 3px; border-radius: 2px; background: #121212; opacity: .7; transform-origin: left; animation: cal-window 5s linear forwards; pointer-events: none; }
 @keyframes cal-window { from { transform: scaleX(1); } to { transform: scaleX(0); } }

@@ -39,12 +39,13 @@ test('reports inseparable regions',()=>{
 })
 test('version 1 settings: 16 keys become 8, weak first, strong when weak was empty; strongMin is dropped',()=>{
   const {upgradeConfig,isConfig}=require(process.env.DESKAPI_TEST_OUTPUT+'/shared/validation.js')
-  const key=icon=>({icon,color:'blue',action:{type:'lock'}})
-  const keys=Array(16).fill(null);keys[0]=key('mic');keys[1]=key('lock');keys[3]=key('star');keys[13]=key('bolt')
+  const key=(icon,color='blue')=>({icon,color,action:{type:'lock'}})
+  const keys=Array(16).fill(null);keys[0]=key('mic');keys[1]=key('lock');keys[3]=key('star','green');keys[13]=key('bolt')
   const v1={version:1,profiles:[{id:'a',name:'A',keys}],activeProfileId:'a',locked:false,notify:true,autostart:true,port:'auto',protocol:'auto',
     calibration:{threshold:[1,2,3,4],strongMin:[5,6,7,8],doubleWindowMs:320,refractoryMs:70}}
   const v2=upgradeConfig(v1)
   assert.ok(isConfig(v2));assert.equal(v2.version,2)
+  assert.equal(v2.profiles[0].keys[0].color,'cyan');assert.equal(v2.profiles[0].keys[1].color,'orange')
   assert.deepEqual(v2.profiles[0].keys.map(k=>k?.icon??null),['mic','star',null,null,null,null,'bolt',null])
   assert.deepEqual(v2.calibration,{threshold:[1,2,3,4],doubleWindowMs:320,refractoryMs:70})
   assert.equal(isConfig(v1),false);assert.equal(upgradeConfig(v2),v2)
@@ -144,4 +145,24 @@ test('calibration progress propagates calculation errors for the screen to displ
       assert.throws(() => advanceCalibration(progress, data[step][i], noisy), /ノイズが大きすぎます/)
     } else progress = advanceCalibration(progress, data[step][i], noisy)
   }
+})
+
+test('version 2 settings migrate both legacy colors in every profile and preserve key data',()=>{
+  const {upgradeConfig,isConfig}=require(process.env.DESKAPI_TEST_OUTPUT+'/shared/validation.js')
+  const {DEFAULT_CONFIG}=require(process.env.DESKAPI_TEST_OUTPUT+'/shared/constants.js')
+  const original=structuredClone(DEFAULT_CONFIG)
+  for(const profile of original.profiles){
+    profile.keys[0]={icon:'mic',color:'green',slash:true,action:{type:'lock'}}
+    profile.keys[1]={icon:'bolt',color:'blue',action:{type:'launch',file:'calc.exe'}}
+  }
+  assert.equal(isConfig(original),false)
+  const upgraded=upgradeConfig(original)
+  assert.ok(isConfig(upgraded));assert.equal(upgraded.version,2)
+  for(const [i,profile] of upgraded.profiles.entries()){
+    assert.deepEqual(profile.keys[0],{...original.profiles[i].keys[0],color:'orange'})
+    assert.deepEqual(profile.keys[1],{...original.profiles[i].keys[1],color:'cyan'})
+    assert.deepEqual(profile.keys.slice(2),original.profiles[i].keys.slice(2))
+  }
+  assert.equal(original.profiles[0].keys[0].color,'green')
+  assert.equal(upgradeConfig(upgraded),upgraded)
 })

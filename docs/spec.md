@@ -23,7 +23,7 @@ keyIndex = region * 2 + (count - 1)
 `%APPDATA%/DeskAPI/config.json`（`app.getPath('userData')`）に保存。読み込み時に壊れていたら `config.broken-<日時>.json` に退避して既定値で起動する。
 
 ```ts
-type ColorId = 'red' | 'yellow' | 'green' | 'blue' | 'indigo';
+type ColorId = 'red' | 'orange' | 'yellow' | 'cyan' | 'indigo';
 type IconId = 'mic' | 'capture' | 'code' | 'app' | 'playpause' | 'next' | 'volume' | 'music' | 'terminal'
   | 'hammer' | 'bubble' | 'lock' | 'keyboard' | 'send' | 'layers' | 'broadcast' | 'star' | 'bolt';
 
@@ -65,10 +65,10 @@ type Config = {
 
 | id | 背景 | アイコン |
 |---|---|---|
-| red | #D62413 | #FFFFFF |
-| yellow | #D6B813 | #121212 |
-| green | #13D66A | #121212 |
-| blue | #2214D6 | #FFFFFF |
+| red | #D12052 | #121212 |
+| orange | #F45B26 | #121212 |
+| yellow | #F8DE22 | #121212 |
+| cyan | #03AED2 | #121212 |
 | indigo | #3C3781 | #FFFFFF |
 
 ## タップを受けたとき（main）
@@ -132,7 +132,7 @@ type Config = {
 - 静止 → 各領域 3 打（4 段。タイルには「叩く」）→ 完了
 - 完了画面の保存（チェック）で `set_cal` を送り、`ack` を受けたら机マップに戻る
 - 叩いた打はすべて数える（最大の ch が叩いた領域でなくても捨てない。任意のテーブルで成り立たせるため）
-- 完了時に `docs/protocol.md` の「確かめ」を行い、当たった領域（型で判定を間違える）は、そのタイルを赤 #D62413 にしてやり直す
+- 完了時に `docs/protocol.md` の「確かめ」を行い、当たった領域（型で判定を間違える）は、そのタイルを赤 #D12052 にしてやり直す
 - デバイス未接続ならキャリブレーションボタンは押せない（モック時は押せる）
 - **正は tools/tap-collect（collect.mjs）の手順**。キャリブレーションの最適化は tap-collect で行い（score.mjs の app 採点は `app/src/main/recorder.ts` と `app/src/shared/tap-procedure.ts` を使う）、良くなったものをアプリに採用する。数値と数え方は `app/src/shared/tap-procedure.ts` にまとめる
 - 打を自動で拾わない。静止：指示から 1 秒 → 机に触れず 1 秒（基準値＝この区間の中央値）→ 3 秒。静止のピークは合図前の 1 秒と 3 秒を通した基準値からの最大のずれ（collect の `peak`）。各ステップ：指示から 1 秒 → 机に触れず 1 秒（ステップの基準値）→ 合図（タイルが明るくなり、5 秒のバーが減っていく）→ 5 秒の区間を記録

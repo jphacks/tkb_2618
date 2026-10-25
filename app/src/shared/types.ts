@@ -1,4 +1,4 @@
-export type ColorId = 'red' | 'yellow' | 'green' | 'blue' | 'indigo'
+export type ColorId = 'red' | 'orange' | 'yellow' | 'cyan' | 'indigo'
 export type IconId = 'mic' | 'capture' | 'code' | 'app' | 'playpause' | 'next' | 'volume' | 'music' | 'terminal'
   | 'hammer' | 'bubble' | 'lock' | 'keyboard' | 'send' | 'layers' | 'broadcast' | 'star' | 'bolt'
 export type MediaOp = 'prev' | 'playpause' | 'next' | 'volDown' | 'volUp' | 'mic'

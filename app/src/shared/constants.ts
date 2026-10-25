@@ -104,36 +104,11 @@ export const ICON_LIST = [
 ] as const
 
 export const COLORS = [
-  [
-    "red",
-    "#D62413",
-    "#FFFFFF",
-    "赤"
-  ],
-  [
-    "yellow",
-    "#D6B813",
-    "#121212",
-    "黄"
-  ],
-  [
-    "green",
-    "#13D66A",
-    "#121212",
-    "緑"
-  ],
-  [
-    "blue",
-    "#2214D6",
-    "#FFFFFF",
-    "青"
-  ],
-  [
-    "indigo",
-    "#3C3781",
-    "#FFFFFF",
-    "紺"
-  ]
+  ['red', '#D12052', '#121212', '赤'],
+  ['orange', '#F45B26', '#121212', '橙'],
+  ['yellow', '#F8DE22', '#121212', '黄'],
+  ['cyan', '#03AED2', '#121212', '水色'],
+  ['indigo', '#3C3781', '#FFFFFF', '紺'],
 ] as const
 
 export const MEDIA_OPS = [
@@ -180,7 +155,7 @@ export const ACTS: readonly {type: Action['type']; name: string; icon: IconId; c
     "type": "hotkey",
     "name": "キー入力",
     "icon": "keyboard",
-    "color": "blue",
+    "color": "cyan",
     "action": {
       "type": "hotkey",
       "keys": [
@@ -203,7 +178,7 @@ export const ACTS: readonly {type: Action['type']; name: string; icon: IconId; c
     "type": "media",
     "name": "メディア",
     "icon": "playpause",
-    "color": "green",
+    "color": "orange",
     "action": {
       "type": "media",
       "op": "playpause"
@@ -223,7 +198,7 @@ export const ACTS: readonly {type: Action['type']; name: string; icon: IconId; c
     "type": "http",
     "name": "Webhook",
     "icon": "send",
-    "color": "blue",
+    "color": "cyan",
     "action": {
       "type": "http",
       "url": "https://[YOUR WEBHOOK URL]"
@@ -283,7 +258,7 @@ export const DEFAULT_CONFIG: Config = {
         },
         {
           "icon": "app",
-          "color": "blue",
+          "color": "cyan",
           "action": {
             "type": "launch",
             "file": "winword.exe"
@@ -291,7 +266,7 @@ export const DEFAULT_CONFIG: Config = {
         },
         {
           "icon": "app",
-          "color": "green",
+          "color": "orange",
           "action": {
             "type": "launch",
             "file": "excel.exe"
@@ -315,7 +290,7 @@ export const DEFAULT_CONFIG: Config = {
         },
         {
           "icon": "bolt",
-          "color": "blue",
+          "color": "cyan",
           "action": {
             "type": "launch",
             "file": "calc.exe"
