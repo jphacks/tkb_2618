@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { options, patterns, parseLine, Lines, Store, MockSource, run, mockValues } from '../core.mjs';
+import { options, patterns, parseLine, Lines, Store, MockSource, run, mockValues, instruction, format } from '../core.mjs';
 const jsonl = f => fs.readFileSync(f, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
 function setup(t, args = []) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'tap-test-'));
@@ -69,10 +69,29 @@ test('起動行・stat・view・サンプル・壊れた行・CRLF・1〜3 バ�
   lines.end();
   assert.deepEqual(result.map(e => e.type), ['bad_line', 'sample', 'bad_line']);
 });
-test('既定 65、no-extra 61、固定 seed、先頭 calibration、拡張・不正オプション', () => {
+
+test('ワンコマンド起動は単一ポートを自動検出し、明示指定・mock・resumeを尊重する', async () => {
+  const { resolvePort } = await import('../collect.mjs');
+  assert.equal(options(['--quick']).quick, true);
+  assert.equal(await resolvePort({}, async () => [{ path: 'COM5', manufacturer: 'Microsoft' }]), 'COM5');
+  const unused = () => { throw Error('ポート一覧を呼んではいけません'); };
+  assert.equal(await resolvePort({ port: 'COM7' }, unused), 'COM7');
+  assert.equal(await resolvePort({ mock: true }, unused), undefined);
+  assert.equal(await resolvePort({ resume: 'saved-session' }, unused), undefined);
+  await assert.rejects(resolvePort({}, async () => []), /ESP32 を USB で接続/);
+  await assert.rejects(resolvePort({}, async () => [{ path: 'COM5' }, { path: 'COM9' }]), /COM5, COM9.*npm start -- --port/);
+});
+test('既定21、no-extra17、後半は全8種を1回ずつ、固定seed、拡張・不正オプション', () => {
   const o = options(['--seed', '123']);
   const a = patterns(o);
-  assert.equal(a.length, 65);
+  assert.equal(a.length, 21);
+  assert.equal(a.filter(p => p.kind === 'tap').length, 8);
+  assert.deepEqual(a.filter(p => p.kind === 'tap').map(p => p.label).sort(),
+    ['lt', 'rt', 'lb', 'rb'].flatMap(z => [1, 2].map(c => `${z}_${c}`)).sort());
+  assert.ok(a.every(p => !('strength' in p)));
+  assert.ok(!('strengths' in o));
+  assert.ok(a.filter(p => p.kind === 'tap').every(p => p.seconds === 5));
+  assert.equal(patterns(options(['--reps', '3'])).length, 37);
   assert.equal(a[0].kind, 'calibration');
   assert.deepEqual(patterns(o), a);
   assert.notDeepEqual(patterns({
@@ -82,10 +101,29 @@ test('既定 65、no-extra 61、固定 seed、先頭 calibration、拡張・不�
   assert.equal(patterns({
     ...o,
     extra: false
-  }).length, 61);
-  assert.equal(patterns(options(['--counts', '1,2,3', '--strengths', 'weak,medium,strong'])).find(p => p.count === 3).seconds, 3);
-  for (const args of [['--reps', '0'], ['--window', 'NaN'], ['--counts', '4'], ['--zones', 'lt,lt'], ['--order', 'bad'], ['--port'], ['--wat']]) assert.throws(() => options(args));
+  }).length, 17);
+  assert.equal(patterns(options(['--counts', '1,2,3'])).find(p => p.count === 3).seconds, 6);
+  for (const args of [['--reps', '0'], ['--window', 'NaN'], ['--prepare', '0.5'], ['--prepare', 'NaN'], ['--counts', '4'], ['--zones', 'lt,lt'], ['--order', 'bad'], ['--port'], ['--wat'], ['--strengths', 'weak,strong']]) assert.throws(() => options(args));
 });
+test('校正と使用の指示・記録形式・ヘルプに強さを含めない', async () => {
+  const all = patterns(options([]));
+  for (const p of all) assert.doesNotMatch(instruction(p), /弱|中|強|undefined/);
+  for (const [key, zone] of Object.entries({ lt: '左上', rt: '右上', lb: '左下', rb: '右下' })) {
+    assert.equal(instruction(all.find(p => p.kind === 'cal_single' && p.zone === key)), `${zone} を 1 回ずつ、間をあけて 3 回叩く`);
+    assert.equal(instruction(all.find(p => p.kind === 'cal_double' && p.zone === key)), `${zone} をダブルタップ（トントンと素早く 2 回）× 2 セット。セットの間はあける`);
+    assert.equal(instruction({ kind: 'tap', zone: key, count: 1 }), `${zone} を 1 回叩く`);
+    assert.equal(instruction({ kind: 'tap', zone: key, count: 2 }), `${zone} をダブルタップ（トントンと素早く 2 回）`);
+  }
+  assert.doesNotMatch(format, /strength|weak|strong|強弱/);
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { fileURLToPath } = await import('node:url');
+  const { stdout, stderr } = await promisify(execFile)(process.execPath,
+    [fileURLToPath(new URL('../collect.mjs', import.meta.url)), '--help']);
+  assert.equal(stderr, '');
+  assert.doesNotMatch(stdout, /strength|weak|strong/);
+});
+
 test('モック全パターン、全ファイル、境界・ピーク・飽和・イベント', async t => {
   const store = new Store(setup(t, ['--reps', '1']));
   const dir = store.dir;
@@ -98,7 +136,7 @@ test('モック全パターン、全ファイル、境界・ピーク・飽和�
   assert.equal(session.bootLines.length, 1);
   const raw = fs.readFileSync(path.join(dir, 'raw.csv'), 'utf8').trim().split('\n');
   const records = jsonl(path.join(dir, 'trials.jsonl'));
-  assert.equal(records.length, 33);
+  assert.equal(records.length, 21);
   for (let i = 1; i < raw.length; i++) assert.equal(Number(raw[i].split(',')[0]), i - 1);
   const events = jsonl(path.join(dir, 'events.jsonl'));
   for (const r of records) {
@@ -112,8 +150,20 @@ test('モック全パターン、全ファイル、境界・ピーク・飽和�
   }
   assert.ok(records.filter(r => r.kind === 'tap').every(r => r.saturated.every(v => v === 0)));
 });
+
+test('指示待ちを変更しても合図前1秒を確保し、旧セッションは待ち1.5秒を維持する', async t => {
+  for (const prepare of [1, 3, undefined]) {
+    const store = new Store(setup(t));
+    store.session.options.prepare = prepare;
+    store.session.patterns = [store.session.patterns[0]];
+    assert.equal(await execute(store), true);
+    assert.equal(store.records[0].from, ((prepare ?? 1.5) - 1) * 4000);
+    assert.equal(store.records[0].cue - store.records[0].from, 4000);
+    store.close(true);
+  }
+});
 test('直前の redo・メモ、記録中 redo・一時停止・resume', async t => {
-  const store = new Store(setup(t, ['--reps', '1', '--zones', 'rt', '--counts', '2', '--strengths', 'weak', '--no-extra']));
+  const store = new Store(setup(t, ['--reps', '1', '--zones', 'rt', '--counts', '2', '--no-extra']));
   const timer = new FakeClock();
   const source = new MockSource(store, timer);
   const queue = [];
@@ -155,7 +205,7 @@ test('直前の redo・メモ、記録中 redo・一時停止・resume', async t
   assert.equal(jsonl(path.join(dir, 'events.jsonl')).filter(e => e.type === 'resume').length, 1);
 });
 test('記録途中停止 aborted と途中行の復旧', async t => {
-  const store = new Store(setup(t, ['--no-extra', '--reps', '1', '--zones', 'lt', '--counts', '1', '--strengths', 'strong']));
+  const store = new Store(setup(t, ['--no-extra', '--reps', '1', '--zones', 'lt', '--counts', '1']));
   const dir = store.dir;
   assert.equal(await execute(store, {
     abortAt: 25
@@ -191,25 +241,17 @@ test('中央値・飽和・不正行・dropped', t => {
   assert.equal(r.badLines, 1);
   store.close();
 });
-test('mock の強弱・3 回・extra 波形', () => {
+test('mock の3回・extra波形とseed・試行IDによる再現性', () => {
   const p = {
     kind: 'tap',
     zone: 'lt',
-    count: 3,
-    strength: 'weak'
+    count: 3
   };
-  assert.ok(mockValues({
-    ...p,
-    strength: 'strong'
-  }, 0.12, 480)[0] > mockValues(p, 0.12, 480)[0]);
-  const peaks = Array.from({
-    length: 5
-  }, (_, k) => mockValues({
-    ...p,
-    strength: 'strong',
-    rep: k + 1
-  }, 0.12, 480, 42)[0]);
-  assert.equal(peaks.filter(v => v === 4095).length, 1);
+  const thirdHit = Array.from({ length: 1201 }, (_, k) => {
+    const i = 2080 + k;
+    return mockValues(p, i / 4000, i, 42)[0] - mockValues({ ...p, count: 2 }, i / 4000, i, 42)[0];
+  });
+  assert.ok(Math.max(...thirdHit) > 100);
   assert.deepEqual(mockValues({
     ...p,
     id: 2
@@ -236,7 +278,7 @@ test('mock の強弱・3 回・extra 波形', () => {
   }, 0.01, 40), mockValues(null, 0.01, 40));
 });
 test('切断時 aborted、再接続後は同じ試行を撮り直す', async t => {
-  const store = new Store(setup(t, ['--reps', '1', '--no-extra', '--zones', 'lt', '--counts', '1', '--strengths', 'weak']));
+  const store = new Store(setup(t, ['--reps', '1', '--no-extra', '--zones', 'lt', '--counts', '1']));
   const timer = new FakeClock();
   const source = new MockSource(store, timer);
   let ticks = 0;
@@ -349,7 +391,7 @@ test('起動場所によらずツールの git コミットを保存する', t =
     store?.close();
   }
 });
-test('進捗は合図・指示を保持し、別の出力の前に行を消す', async () => {
+test('合図は1回だけ出し、進捗に重ねず、別の出力の前に行を消す', async () => {
   const {
     EventEmitter
   } = await import('node:events');
@@ -373,13 +415,16 @@ test('進捗は合図・指示を保持し、別の出力の前に行を消す',
       values: Array(3000),
       seconds: 2.5
     };
+    ui.say('叩いて');
     ui.progress(a, 2000);
-    assert.match(text, /叩いて.*0\.5 \/ 2\.5 秒/);
+    ui.progress(a, 2000);
+    assert.match(text, /0\.5 \/ 2\.5 秒/);
+    assert.equal(text.match(/叩いて/g).length, 1);
     ui.progress({
       ...a,
       kind: 'typing'
     }, 2000);
-    assert.match(text, /キーボードを普通に打つ/);
+    assert.doesNotMatch(text, /キーボードを普通に打つ/);
     ui.say('切断');
     assert.ok(text.endsWith('\r\x1b[K切断\n'));
   } finally {
@@ -468,7 +513,7 @@ test('mock の試行ごとの振幅・ch 重み・間隔と再現性', () => {
   const amplitudes = new Set();
   const ratios = new Set();
   for (let id = 1; id <= 20; id++) {
-    const p = { id, kind: 'tap', zone: 'lt', count: 2, strength: 'weak' };
+    const p = { id, kind: 'tap', zone: 'lt', count: 2 };
     const first = mockValues(p, 0.12, 480, 42);
     const baseline = mockValues(null, 0.12, 480, 42);
     const peak = first[0] - baseline[0];
@@ -492,32 +537,68 @@ test('mock の試行ごとの振幅・ch 重み・間隔と再現性', () => {
   assert.ok(intervals.size > 1);
 });
 
-test('既定の固定校正順と時間、キー入力なしで 5 分以内', async t => {
+test('既定の固定校正順と時間、準備2秒・打撃5秒で21試行137秒', async t => {
   const o = setup(t);
   const a = patterns(o);
-  assert.equal(a.length, 65);
-  assert.deepEqual(a.slice(0, 13), patterns({ ...o, seed: 99 }).slice(0, 13));
-  assert.deepEqual(a.slice(1, 9).map(p => [p.zone, p.strength]),
-    ['lt', 'rt', 'lb', 'rb'].flatMap(z => [[z, 'weak'], [z, 'strong']]));
-  assert.ok(a.slice(9, 13).every(p => p.kind === 'cal_double' && p.sets === 2 && p.strength === null));
-  const seconds = a.reduce((sum, p) => sum + 1.5 + p.seconds, 0);
-  assert.equal(seconds, 268.5);
+  assert.equal(a.length, 21);
+  assert.deepEqual(a.slice(0, 9), patterns({ ...o, seed: 99 }).slice(0, 9));
+  assert.deepEqual(a.slice(1, 5).map(p => [p.zone, p.label, p.sets]),
+    ['lt', 'rt', 'lb', 'rb'].map(z => [z, `cal_single_${z}`, 3]));
+  assert.ok(a.slice(5, 9).every(p => p.kind === 'cal_double' && p.sets === 2));
+  const seconds = a.reduce((sum, p) => sum + o.prepare + p.seconds, 0);
+  assert.equal(seconds, 137);
   const store = new Store(o);
   assert.equal(await execute(store), true);
   assert.equal(store.i, seconds * 4000);
+  assert.ok(store.records.filter(r => ['cal_single', 'cal_double'].includes(r.kind)).every(r => Number.isInteger(r.mountains)));
+  assert.ok(store.records.filter(r => r.kind === 'calibration' || r.phase === 'use').every(r => r.mountains === null));
   store.close(true);
 });
 
-test('山は静止ピークの 3 倍を超えた波を数える、校正の対象指定', async () => {
+test('山は校正の打撃記録だけ静止ピークの 1.5 倍で数え、使用の部では数えない', async () => {
   const { countMountains } = await import('../core.mjs');
   const values = Array.from({ length: 2000 }, () => [100, 200, 300, 400]);
   for (const i of [1100, 1105, 1300, 1500]) values[i] = [110, 200, 300, 400];
-  assert.equal(countMountains({ values, cue: 1000, from: 0 }, [3, 3, 3, 3], 1000), 3);
-  assert.equal(countMountains({ values, cue: 1000, from: 0 }, [4, 4, 4, 4], 1000), 0);
-  const subset = patterns(options(['--zones', 'rb,lt', '--strengths', 'medium,weak', '--counts', '3']));
-  assert.deepEqual(subset.filter(p => p.kind === 'cal_single').map(p => [p.zone, p.strength]),
-    [['lt', 'weak'], ['lt', 'medium'], ['rb', 'weak'], ['rb', 'medium']]);
+  const trial = { values, cue: 1000, from: 0, phase: 'calibration', kind: 'cal_single' };
+  // These peaks were below the old 3x threshold; ringing 5 ms later is the same wave.
+  assert.equal(countMountains(trial, [4, 4, 4, 4], 1000), 3);
+  assert.equal(countMountains(trial, [7, 7, 7, 7], 1000), 0);
+  assert.equal(countMountains(trial, null, 1000), null);
+  assert.equal(countMountains({ ...trial, cue: null }, [4, 4, 4, 4], 1000), null);
+  for (const kind of ['cal_single', 'cal_double']) {
+    assert.equal(countMountains({ ...trial, kind }, [4, 4, 4, 4], 1000), 3);
+    assert.equal(countMountains({ ...trial, kind, phase: undefined }, [4, 4, 4, 4], 1000), 3);
+    assert.equal(countMountains({ ...trial, kind, phase: 'use' }, [4, 4, 4, 4], 1000), null);
+  }
+  assert.equal(countMountains({ ...trial, kind: 'calibration' }, [4, 4, 4, 4], 1000), null);
+  for (const kind of ['tap', 'rest', 'typing', 'place', 'lean']) {
+    assert.equal(countMountains({ ...trial, kind, phase: 'use' }, [4, 4, 4, 4], 1000), null);
+  }
+  values[1100] = values[1105] = values[1300] = values[1500] = [106, 200, 300, 400];
+  assert.equal(countMountains(trial, [4, 4, 4, 4], 1000), 0);
+  const subset = patterns(options(['--zones', 'rb,lt', '--counts', '3']));
+  assert.deepEqual(subset.filter(p => p.kind === 'cal_single').map(p => p.zone), ['lt', 'rb']);
   assert.ok(!subset.some(p => p.kind === 'cal_double'));
+});
+
+test('校正の打撃記録では山0も表示し、静止の測定と使用の部では山を表示しない', async () => {
+  const { EventEmitter } = await import('node:events');
+  const { Terminal } = await import('../collect.mjs');
+  const input = new EventEmitter();
+  input.resume = input.pause = () => {};
+  let output = '';
+  const ui = new Terminal(input, { write(s) { output += s; } });
+  const result = { values: [[100, 200, 300, 400]], cue: 1, from: 0, dropped: 0, badLines: 0 };
+  try {
+    ui.result({ ...result, mountains: null });
+    assert.doesNotMatch(output, /山/);
+    assert.match(output, /D0 0.*D1 0.*D3 0.*D4 0.*欠け 0.*不正行 0/);
+    output = '';
+    ui.result({ ...result, mountains: 0 });
+    assert.match(output, /山 0/);
+  } finally {
+    ui.close();
+  }
 });
 
 test('typing 記録中は入力を保存も操作もせず、終了後は操作が戻る', async t => {

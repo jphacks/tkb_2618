@@ -58,7 +58,7 @@ async function cropImage(data: string): Promise<string> {
   return canvas.toDataURL('image/png')
 }
 export function KeyEditor({ value, index, profiles, change, run, guard }: { value: DeskKey | null; index: number; profiles: Profile[]; change: (key: DeskKey | null) => void; run: () => void; guard: (work: Promise<unknown>) => void }) {
-  const region = Math.floor(index / 4), pattern = index % 4
+  const region = Math.floor(index / 2), pattern = index % 2
   const [bg, fg] = value ? colorOf(value.color).slice(1, 3) : ['#EDEDED', '#121212']
   const tileStyle = (on: boolean) => ({ background: on ? bg : '#262626', color: on ? fg : '#BDBDBD' })
   const patch = (patch: Partial<DeskKey>): void => { if (value) change({ ...value, ...patch }) }
@@ -67,7 +67,7 @@ export function KeyEditor({ value, index, profiles, change, run, guard }: { valu
     <div className="preview-row"><div className="key-preview" style={keyStyle(value)}><KeyFace value={value} preview /></div>
       <div className="trigger" role="img" aria-label={`${REGIONS[region]} ${PATTERNS[pattern]}`} title={`${REGIONS[region]} ${PATTERNS[pattern]}`}>
         <span className="region-mini">{REGIONS.map((_, r) => <i key={r} style={{ background: r === region ? '#EDEDED' : '#2E2E2E' }} />)}</span>
-        <span className="trigger-dots">{Array.from({ length: pattern < 2 ? 1 : 2 }, (_, i) => <i key={i} style={{ width: pattern % 2 === 0 ? 7 : 12, height: pattern % 2 === 0 ? 7 : 12 }} />)}</span>
+        <span className="trigger-dots">{Array.from({ length: pattern + 1 }, (_, i) => <i key={i} />)}</span>
       </div>
     </div>
     <div className="action-grid" role="radiogroup" aria-label="アクション">{ACTS.map(item => <ActionTile key={item.type} {...item} selected={action?.type === item.type} bg={bg} fg={fg} pick={() => {

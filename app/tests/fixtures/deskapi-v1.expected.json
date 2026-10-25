@@ -8,119 +8,102 @@
     "t": "tap",
     "region": 0,
     "count": 1,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 0,
     "count": 1,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 0,
     "count": 2,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 0,
     "count": 2,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 1,
     "count": 1,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 1,
     "count": 1,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 1,
     "count": 2,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 1,
     "count": 2,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 2,
     "count": 1,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 2,
     "count": 1,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 2,
     "count": 2,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 2,
     "count": 2,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 3,
     "count": 1,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 3,
     "count": 1,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 3,
     "count": 2,
-    "strength": "weak",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 3,
     "count": 2,
-    "strength": "strong",
     "confidence": 0.9
   },
   {
     "t": "tap",
     "region": 0,
     "count": 1,
-    "strength": "weak",
     "confidence": 1,
     "sat": true
   },

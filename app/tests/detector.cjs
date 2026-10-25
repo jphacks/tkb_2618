@@ -6,7 +6,7 @@ const within = (delta, expected, actual) => assert.ok(Math.abs(expected - actual
 class Rig {
   events = []; nextUs = 500; quiet = [2048,2048,2048,2048]
   constructor() {
-    this.detector = new Detector(e => this.events.push({...e, type:e.t, strong:e.strength === 'strong', saturated:!!e.sat, peaks:e.peaks ?? e.peak ?? [...this.detector.peaks], rawMin:e.min, rawMax:e.max}))
+    this.detector = new Detector(e => this.events.push({...e, type:e.t, saturated:!!e.sat, peaks:e.peaks ?? e.peak ?? [...this.detector.peaks], rawMin:e.min, rawMax:e.max}))
     this.detector.sample(this.quiet, 0)
   }
   idleTo(end) { while(this.nextUs <= end) { this.detector.sample(this.quiet,this.nextUs); this.nextUs += 500 } }
@@ -22,13 +22,12 @@ test('test_defaults_and_invalid_calibration', () => {
     assert.equal(70, defaults.refractoryMs);
     for (let i = 0; i < 4; i++) {
         assert.equal(150, defaults.threshold[i]);
-        assert.equal(700, defaults.strongMin[i]);
     }
     let invalid = defaultCalibration();
     invalid.threshold[2] = NaN;
     assert.equal(rig.detector.setCalibration(invalid), false);
     invalid = structuredClone(defaults);
-    invalid.strongMin[1] = 4096;
+    invalid.threshold[1] = 4096;
     assert.equal(validCalibration(invalid), false);
     invalid = structuredClone(defaults);
     invalid.doubleWindowMs = 0;
@@ -47,7 +46,6 @@ test('test_single_waits_until_onset_deadline', () => {
     assert.equal(1, rig.events.length);
     assert.equal(0, rig.events[0].region);
     assert.equal(1, rig.events[0].count);
-    assert.equal(rig.events[0].strong, false);
     within(0.001, 0.8, rig.events[0].confidence);
 })
 
@@ -75,8 +73,7 @@ test('test_region_selected_by_maximum_not_first_trigger', () => {
     rig.idleTo(330000);
     assert.equal(1, rig.events.length);
     assert.equal(1, rig.events[0].region);
-    assert.ok(rig.events[0].strong);
-    within(0.001, 0.75, rig.events[0].confidence);
+within(0.001, 0.75, rig.events[0].confidence);
 })
 
 test('test_peak_window_excludes_sample_at_end', () => {
@@ -107,27 +104,25 @@ test('test_dc_tracks_quiet_baseline_drift', () => {
     within(1, 0, rig.events[0].peaks[0]);
 })
 
-test('test_double_uses_stronger_hit_and_lower_confidence', () => {
+test('test_double_uses_lower_confidence', () => {
 
     const rig = new Rig();
     rig.hit(10000, [0, 500, 100, 0]);
     rig.hit(200000, [0, 900, 450, 0]);
     assert.equal(1, rig.events.length);
     assert.equal(2, rig.events[0].count);
-    assert.ok(rig.events[0].strong);
-    within(0.001, 0.5, rig.events[0].confidence);
+within(0.001, 0.5, rig.events[0].confidence);
     rig.idleTo(600000);
     assert.equal(1, rig.events.length);
 })
 
-test('test_double_preserves_strong_first_hit', () => {
+test('test_double_after_softer_second_hit', () => {
 
     const rig = new Rig();
     rig.hit(10000, [0, 0, 700, 0]);
     rig.hit(100000, [0, 0, 300, 0]);
     assert.equal(1, rig.events.length);
     assert.equal(2, rig.events[0].count);
-    assert.ok(rig.events[0].strong);
 })
 
 test('test_double_at_exact_deadline_finishes_after_deadline', () => {
@@ -189,10 +184,9 @@ test('test_dc_offset_negative_signal_and_quiet_do_not_trigger', () => {
     rig.idleTo(1330000);
     assert.equal(1, rig.events.length);
     assert.equal(2, rig.events[0].region);
-    assert.ok(rig.events[0].strong);
 })
 
-test('test_biased_bipolar_input_all_channels_and_strengths', () => {
+test('test_biased_bipolar_input_all_channels_and_amplitudes', () => {
 
     for (let channel = 0; channel < 4; channel++) {
         for (const sign of [-1, 1]) {
@@ -209,7 +203,6 @@ test('test_biased_bipolar_input_all_channels_and_strengths', () => {
                 assert.equal(1, rig.events.length);
                 assert.equal(channel, rig.events[0].region);
                 assert.equal(amplitude, rig.events[0].peaks[channel]);
-                assert.equal(amplitude >= 700, rig.events[0].strong);
                 assert.equal(1, rig.events[0].count);
             }
         }
@@ -224,7 +217,6 @@ test('test_threshold_strict_and_per_channel_calibration_immediate', () => {
     assert.ok(rig.events.length === 0);
     let cal = defaultCalibration();
     cal.threshold = [1000, 1000, 90.5, 1000];
-    cal.strongMin[2] = 200;
     cal.doubleWindowMs = 100;
     assert.ok(rig.detector.setCalibration(cal));
     rig.hit(500000, [500, 0, 200, 0]);
@@ -232,7 +224,6 @@ test('test_threshold_strict_and_per_channel_calibration_immediate', () => {
     assert.equal(1, rig.events.length);
     
     assert.equal(0, rig.events[0].region);
-    assert.equal(rig.events[0].strong, false);
 })
 
 test('test_equal_peaks_have_zero_confidence', () => {
@@ -288,8 +279,9 @@ test('test_long_uptime_does_not_wrap_hit_timing', () => {
     const rig = new Rig();
     const start = 2 ** 32 + 204;
     rig.nextUs = start;
-    rig.hit(start, [500, 0, 0, 0]);
-    rig.hit(start + 200000, [500, 0, 0, 0]);
+    rig.idleTo(start + 5000);  // past the first samples, where nothing triggers
+    rig.hit(start + 10000, [500, 0, 0, 0]);
+    rig.hit(start + 210000, [500, 0, 0, 0]);
     assert.equal(1, rig.events.length);
     assert.equal(2, rig.events[0].count);
 })
@@ -353,14 +345,12 @@ test('test_templates_metal_legacy_and_confidence', () => {
 
     let cal = defaultCalibration();
     cal.templates = [[2, 3, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
-    cal.strongMin[0] = 650;
     const metal = new Rig();
     assert.ok(metal.detector.setCalibration(cal));
     metal.hit(10000, [500, 750, 0, 0]);
     metal.idleTo(330000);
     assert.equal(0, metal.events[0].region);
-    assert.ok(metal.events[0].strong); 
-    within(0.0001, 1, metal.events[0].confidence);
+within(0.0001, 1, metal.events[0].confidence);
     const legacy = new Rig();
     legacy.hit(10000, [500, 750, 0, 0]);
     legacy.idleTo(330000);
@@ -403,16 +393,18 @@ test('test_ring_quiet_reset_cap_and_peak_capture', () => {
     assert.equal(500, ringing.events[0].peaks[0]);
     const endless = new Rig();
     endless.detector.setMode('calibrate');
+    // The offset starts after the first samples, which would otherwise take it as a cut-off first line.
+    endless.idleTo(10000);
     endless.quiet[0] = 2548;
-    endless.idleTo(1000000);
+    endless.idleTo(1010000);
     assert.ok(endless.events.length === 0);
-    endless.idleTo(1000500);
+    endless.idleTo(1010500);
     assert.equal(1, endless.events.length);
     assert.equal(1000, endless.events[0].ring);
 })
 
 test('test_templates_storage_and_invalid_rows', () => {
-  const cal = {threshold:[90,85,100,88],strongMin:[520,480,600,500],doubleWindowMs:370,refractoryMs:250,templates:[[2,3,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]}
+  const cal = {threshold:[90,85,100,88],doubleWindowMs:370,refractoryMs:250,templates:[[2,3,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]}
   const rig = new Rig()
   assert.equal(rig.detector.setCalibration(cal),true)
   within(0.00001,2 / Math.sqrt(13),rig.detector.calibration().templates[0][0])
@@ -428,4 +420,18 @@ test('test_templates_storage_and_invalid_rows', () => {
     const invalid = structuredClone(cal); invalid.templates[0] = row
     assert.equal(rig.detector.setCalibration(invalid),false)
   }
+})
+
+test('a cut-off first line does not become the baseline, and a DC jump recovers', () => {
+  // tap-logs/20261025-045135 started with D3 = 301 (3301 cut off); the DC stayed there and fired forever.
+  const events = [], detector = new Detector(e => events.push(e))
+  detector.sample([2048,2048,301,2048], 0)
+  for (let us = 250; us <= 3000000; us += 250) detector.sample([2048,2048,2048,2048], us)
+  assert.equal(events.length, 0)
+  // A lasting step (sensor bumped) fires at first, then the DC restarts there and it goes quiet.
+  for (let us = 3000250; us <= 8000000; us += 250) detector.sample([2048,2048,2548,2048], us)
+  const fired = events.length
+  assert.ok(fired > 0)
+  for (let us = 8000250; us <= 10000000; us += 250) detector.sample([2048,2048,2548,2048], us)
+  assert.equal(events.length, fired)
 })

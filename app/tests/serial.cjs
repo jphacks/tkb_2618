@@ -37,7 +37,7 @@ test('Duplex handshake, framing, tap, calibration, disconnect and reconnect', as
   await device.setMode('calibrate')
   assert.deepEqual((await device.measureNoise()).peak,[1,2,3,4])
   p.send({t:'hit',peaks:[10,900,10,10],ms:18,ring:64});await until(()=>hits.length===1)
-  await device.saveCalibration({threshold:[100,100,100,100],strongMin:[500,500,500,500],doubleWindowMs:320,refractoryMs:70})
+  await device.saveCalibration({threshold:[100,100,100,100],doubleWindowMs:320,refractoryMs:70})
   assert.equal(device.status.cal,true)
   await device.setMode('run')
   p.destroy();await until(()=>ports.length===2 && device.status.state==='connected')
@@ -92,7 +92,8 @@ test('v1.1 validates ring and sat, preserves saturation and sends templates',asy
   p.send({t:'tap',region:0,count:1,strength:'weak',confidence:0.9,sat:true})
   await until(()=>hits.length===1 && taps.length===1)
   assert.equal(hits[0].sat,true);assert.equal(taps[0].sat,true)
-  const cal={threshold:[100,100,100,100],strongMin:[500,500,500,500],doubleWindowMs:370,refractoryMs:250,templates:[[0.6,0.8,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]}
+  const cal={threshold:[100,100,100,100],doubleWindowMs:370,refractoryMs:250,templates:[[0.6,0.8,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]}
   await device.saveCalibration(cal)
-  assert.deepEqual(p.commands.at(-1).cal,cal)
+  // The reference firmware still requires strongMin; the adapter fills it in.
+  assert.deepEqual(p.commands.at(-1).cal,{...cal,strongMin:[4095,4095,4095,4095]})
 })

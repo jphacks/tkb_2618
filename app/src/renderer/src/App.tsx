@@ -1,12 +1,13 @@
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { useEffect, useState } from 'react'
 import { freshKey } from '../../shared/constants'
-import { keyIndexOf, type Action, type Config, type DeskKey } from '../../shared/types'
+import { KEY_COUNT, keyIndexOf, type Action, type Config, type DeskKey } from '../../shared/types'
 import { useConfig } from './useConfig'
 import { DeskMap, KeyFace, keyStyle } from './DeskMap'
 import { KeyEditor } from './KeyEditor'
 import { Calibration } from './Calibration'
 import { IconButton } from './Icon'
+import { DeviceAlert, useDeviceAlert } from './DeviceAlert'
 
 function Settings({ config, edit, close, guard }: { config: Config; edit: (change: (config: Config) => Config) => void; close: () => void; guard: (work: Promise<unknown>) => void }) {
   const [ports, setPorts] = useState<string[]>([])
@@ -26,6 +27,7 @@ export function App() {
   const [renaming, setRenaming] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const alert = useDeviceAlert(status)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor))
   useEffect(() => {
     let sequence = 0
@@ -80,7 +82,8 @@ export function App() {
       profiles: remaining.map(p => ({ ...p, keys: p.keys.map(k => k?.action.type === 'profile' && k.action.to === id ? { ...k, action: { type: 'profile', to: fallback } } : k) })) }
   })
   const statusLabel = error ?? (status.state === 'connected' ? `接続中 · ${status.port}` : status.state === 'connecting' ? '接続試行中' : '未接続')
-  if (calibrating) return <Calibration close={() => setCalibrating(false)} guard={guard} />
+  const deviceAlert = alert.open && <DeviceAlert reason={alert.reason} dismiss={alert.dismiss} choosePort={() => { setCalibrating(false); setSettings(true) }} />
+  if (calibrating) return <><Calibration status={status} close={() => setCalibrating(false)} guard={guard} />{deviceAlert}</>
   return <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragKey(null)} accessibility={{ screenReaderInstructions: { draggable: 'スペースキーで持ち上げ、矢印キーで移動、もう一度スペースキーで割り当てます。Escで中止します。' }, announcements: {
     onDragStart: () => 'ドラッグを開始しました', onDragOver: ({ over }) => over ? '割り当て先を選択しています' : undefined,
     onDragEnd: ({ over }) => over ? 'キーに割り当てました' : 'ドラッグを中止しました', onDragCancel: () => 'ドラッグを中止しました'
@@ -90,7 +93,7 @@ export function App() {
         : <button type="button" key={p.id} className="profile-pill dk-ghost" aria-pressed={p.id === profile.id} style={{ background: p.id === profile.id ? '#EDEDED' : 'transparent', color: p.id === profile.id ? '#121212' : '#8A8A8A' }}
           onClick={() => edit(c => ({ ...c, activeProfileId: p.id }))} onDoubleClick={() => { setRenaming(p.id); setDraft(p.name) }} onContextMenu={e => { e.preventDefault(); setMenu({ id: p.id, x: Math.min(e.clientX, window.innerWidth - 60), y: e.clientY }) }}>{p.name}</button>)}
       <IconButton label="プロファイルを追加" icon="plus" className="add-profile" onClick={() => edit(c => {
-        const id = crypto.randomUUID(), next = { id, name: `プロファイル ${c.profiles.length + 1}`, keys: Array<DeskKey | null>(16).fill(null) }
+        const id = crypto.randomUUID(), next = { id, name: `プロファイル ${c.profiles.length + 1}`, keys: Array<DeskKey | null>(KEY_COUNT).fill(null) }
         return { ...c, activeProfileId: id, profiles: [...c.profiles, next] }
       })} /></nav><div className="grow" />
       <span role="img" aria-label={statusLabel} title={statusLabel} className={`device-dot ${status.state === 'connecting' ? 'connecting' : ''}`} style={{ background: error ? '#D62413' : status.state === 'connected' ? '#13D66A' : '#5A5A5A' }} />
@@ -102,6 +105,6 @@ export function App() {
     {settings ? <Settings config={config} edit={edit} close={() => setSettings(false)} guard={guard} />
       : <KeyEditor key={`${profile.id}-${selected}`} value={value} index={selected} profiles={config.profiles} change={changeKey} run={() => guard(flush().then(() => window.deskapi.runKey(selected)))} guard={guard} />}
     {menu && <div className="profile-menu" role="menu" style={{ left: menu.x, top: menu.y }}><IconButton label="プロファイルを削除" icon="trash" role="menuitem" disabled={config.profiles.length <= 1} onClick={() => { deleteProfile(menu.id); setMenu(null) }} /></div>}
-    </div><DragOverlay dropAnimation={null}>{dragKey && <div className="drag-key" style={keyStyle(dragKey)}><KeyFace value={dragKey} /></div>}</DragOverlay>
+    </div>{deviceAlert}<DragOverlay dropAnimation={null}>{dragKey && <div className="drag-key" style={keyStyle(dragKey)}><KeyFace value={dragKey} /></div>}</DragOverlay>
   </DndContext>
 }

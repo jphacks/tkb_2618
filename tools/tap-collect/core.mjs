@@ -3,15 +3,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
+import { loadAppCode } from './app-code.mjs';
+const { procedure: { REST_MS, PREPARE_MS, BASELINE_MS, WINDOW_MS, TAPS_PER_STEP, baselineOf, peakFrom, stepHits } } = await loadAppCode();
 export const channels = ['D0 左上', 'D1 右上', 'D3 左下', 'D4 右下'];
 export const defaults = {
-  reps: 3,
+  reps: 1,
   zones: ['lt', 'rt', 'lb', 'rb'],
   counts: [1, 2],
-  strengths: ['weak', 'strong'],
   extra: true,
   order: 'shuffle',
-  window: 2,
+  window: WINDOW_MS / 1000,
+  prepare: PREPARE_MS / 1000,
   out: 'tap-logs',
   mock: false
 };
@@ -19,6 +21,7 @@ export function options(args) {
   const o = structuredClone(defaults);
   const flags = {
     '--mock': 'mock',
+    '--quick': 'quick',
     '--list': 'list',
     '--help': 'help'
   };
@@ -33,12 +36,13 @@ export function options(args) {
       continue;
     }
     const key = a.slice(2);
-    if (!['port', 'reps', 'zones', 'counts', 'strengths', 'order', 'seed', 'window', 'table', 'sensors', 'out', 'resume'].includes(key) || !a.startsWith('--') || args[i + 1] === undefined || args[i + 1].startsWith('--')) throw Error(`不明なオプションまたは値なし: ${a}`);
+    if (!['port', 'reps', 'zones', 'counts', 'order', 'seed', 'window', 'prepare', 'table', 'sensors', 'out', 'resume'].includes(key) || !a.startsWith('--') || args[i + 1] === undefined || args[i + 1].startsWith('--')) throw Error(`不明なオプションまたは値なし: ${a}`);
     o[key] = args[++i];
   }
-  for (const key of ['reps', 'window', 'seed']) if (o[key] !== undefined) o[key] = Number(o[key]);
+  for (const key of ['reps', 'window', 'prepare', 'seed']) if (o[key] !== undefined) o[key] = Number(o[key]);
   if (!Number.isInteger(o.reps) || o.reps < 1 || !Number.isFinite(o.window) || o.window <= 0 || o.seed !== undefined && !Number.isSafeInteger(o.seed)) throw Error('reps は正の整数、window は正の秒数、seed は整数です');
-  for (const [key, allowed] of [['zones', ['lt', 'rt', 'lb', 'rb']], ['counts', [1, 2, 3]], ['strengths', ['weak', 'medium', 'strong']]]) {
+  if (!Number.isFinite(o.prepare) || o.prepare < BASELINE_MS / 1000) throw Error(`prepare は ${BASELINE_MS / 1000} 以上の秒数です`);
+  for (const [key, allowed] of [['zones', ['lt', 'rt', 'lb', 'rb']], ['counts', [1, 2, 3]]]) {
     if (typeof o[key] === 'string') o[key] = o[key].split(',').map(v => key === 'counts' ? Number(v) : v);
     if (!o[key].length || new Set(o[key]).size !== o[key].length || o[key].some(v => !allowed.includes(v))) throw Error(`${key} の値が不正です`);
   }
@@ -57,19 +61,18 @@ export function random(seed) {
 }
 export function patterns(o) {
   const trials = [];
-  const add = (kind, zone, count, strength, rep, seconds) => trials.push({
+  const add = (kind, zone, count, rep, seconds) => trials.push({
     id: trials.length + 1,
     kind,
     phase: 'use',
     zone,
     count,
-    strength,
     rep,
     seconds,
-    label: kind === 'tap' ? `${zone}_${count}_${strength}` : kind
+    label: kind === 'tap' ? `${zone}_${count}` : kind
   });
-  for (const z of o.zones) for (const c of o.counts) for (const s of o.strengths) for (let r = 1; r <= o.reps; r++) add('tap', z, c, s, r, o.window + (c === 3 ? 1 : 0));
-  if (o.extra) for (const [k, s] of [['rest', 3], ['typing', 3], ['place', 3], ['lean', 3]]) for (let r = 1; r <= 1; r++) add(k, null, null, null, r, s);
+  for (const z of o.zones) for (const c of o.counts) for (let r = 1; r <= o.reps; r++) add('tap', z, c, r, o.window + (c === 3 ? 1 : 0));
+  if (o.extra) for (const [k, s] of [['rest', REST_MS / 1000], ['typing', 3], ['place', 3], ['lean', 3]]) for (let r = 1; r <= 1; r++) add(k, null, null, r, s);
   if (o.order === 'shuffle') {
     const rng = random(o.seed);
     for (let i = trials.length - 1; i > 0; i--) {
@@ -78,22 +81,20 @@ export function patterns(o) {
     }
   }
   const calibration = [{
-    kind: 'calibration', zone: null, count: null, strength: null,
-    rep: 1, seconds: 3, label: 'calibration', phase: 'calibration'
+    kind: 'calibration', zone: null, count: null,
+    rep: 1, seconds: REST_MS / 1000, label: 'calibration', phase: 'calibration'
   }];
   for (const zone of defaults.zones.filter(z => o.zones.includes(z))) {
-    for (const strength of ['weak', 'medium', 'strong'].filter(s => o.strengths.includes(s))) {
-      calibration.push({
-        kind: 'cal_single', phase: 'calibration', zone, strength, count: 1,
-        sets: 3, rep: 1, seconds: 5, label: `cal_single_${zone}_${strength}`
-      });
-    }
+    calibration.push({
+      kind: 'cal_single', phase: 'calibration', zone, count: 1,
+      sets: TAPS_PER_STEP, rep: 1, seconds: WINDOW_MS / 1000, label: `cal_single_${zone}`
+    });
   }
   if (o.counts.includes(2)) {
     for (const zone of defaults.zones.filter(z => o.zones.includes(z))) {
       calibration.push({
-        kind: 'cal_double', phase: 'calibration', zone, strength: null, count: 2,
-        sets: 2, rep: 1, seconds: 5, label: `cal_double_${zone}`
+        kind: 'cal_double', phase: 'calibration', zone, count: 2,
+        sets: 2, rep: 1, seconds: WINDOW_MS / 1000, label: `cal_double_${zone}`
       });
     }
   }
@@ -161,11 +162,13 @@ session.json に版、時刻、ポート、mock、起動行、rate、全オプ�
 
 events.jsonl は各行が JSON。i は次のサンプル番号、t は ISO 時刻。line は [ で始まるファームの行を全文保存。bad_line は不正行。start / cue / end は試行の開始・合図・終了、key は操作入力（typing の記録中は Ctrl+C 以外を無視し、キーを保存しない）、resume は再開。disconnect / connect は接続状態。
 
-trials.jsonl は各行が試行の結果。同じ n の行が複数あれば最後を採用する（後からの redo・メモの追記）。n は記録の連番、id は session.json の patterns の試行 ID。セッションは phase: "calibration"（静止 → cal_single → cal_double の固定順）と phase: "use"（使用試行）の 2 部構成。cal_single は count: 1、cal_double は count: 2、cal_single は sets: 3 と zone / strength、cal_double は sets: 2 と zone、strength: null を持つ。kind は calibration / cal_single / cal_double / tap / rest / typing / place / lean。tap の zone は lt / rt / lb / rb、count は回数、strength は weak / medium / strong。静止・叩き以外は zone / count / strength が null。rep は繰り返し番号。status は ok（採用）/ redo（不採用）/ aborted（中断）。note は自由メモ、t は開始の ISO 時刻。
+trials.jsonl は各行が試行の結果。同じ n の行が複数あれば最後を採用する（後からの redo・メモの追記）。n は記録の連番、id は session.json の patterns の試行 ID。セッションは phase: "calibration"（静止 → cal_single → cal_double の固定順）と phase: "use"（使用試行）の 2 部構成。cal_single は count: 1、sets: 3 と zone、ラベル cal_single_<zone>、cal_double は count: 2、sets: 2 と zone を持つ。kind は calibration / cal_single / cal_double / tap / rest / typing / place / lean。tap の zone は lt / rt / lb / rb、count は回数。静止・叩き以外は zone / count が null。rep は繰り返し番号。status は ok（採用）/ redo（不採用）/ aborted（中断）。note は自由メモ、t は開始の ISO 時刻。
 
 from / cue / to は raw.csv のサンプル番号。区間は from 以上 to 未満、cue は合図の直後に届くサンプル番号。from から cue までは合図前 1 秒。baseline はこの区間の ch ごとの中央値。peak は全区間の baseline からの絶対差の最大。saturated は全区間で 5 以下または 4090 以上の ch ごとのサンプル数。dropped は区間内の [stat] dropped の合計、badLines は不正行数。中断で合図がなければ cue は null。
 
-trials/NNN_<label>.csv は同じ列で試行区間を切り出したもの。label は rt_2_strong、typing など。redo / aborted も保存する。同じ id で最後の ok を採用する。再開では ok のない試行を保存済みの順で撮り、サンプル番号は継続する。ファームの boot が変わる場合があるため events.jsonl も参照する。
+mountains は校正用の打撃記録（cal_single / cal_double）だけの確認用の山の数。合図前の中央値からのずれが ch ごとの静止ピーク × 1.5 を超え、50 ms を超える静かな間隔で区切られた波を数える。静止の測定・使用の部では null。検出器の校正・採点には使わない。旧ログの山の数は静止ピーク × 3 のため直接比較しない。
+
+trials/NNN_<label>.csv は同じ列で試行区間を切り出したもの。label は rt_2、typing など。redo / aborted も保存する。同じ id で最後の ok を採用する。再開では ok のない試行を保存済みの順で撮り、サンプル番号は継続する。ファームの boot が変わる場合があるため events.jsonl も参照する。
 `;
 function readJsonl(file) {
   return fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(JSON.parse);
@@ -319,15 +322,10 @@ export class Store {
     if (!a) return;
     const end = a.to ?? this.i;
     const pre = a.values.slice(0, (a.cue ?? end) - a.from);
-    const baseline = channels.map((_, ch) => {
-      const v = pre.map(row => row[ch]).sort((x, y) => x - y);
-      const m = Math.floor(v.length / 2);
-      return v.length ? v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2 : null;
-    });
-    const peak = [0, 0, 0, 0],
-      saturated = [0, 0, 0, 0];
+    const baseline = pre.length ? baselineOf(pre) : channels.map(() => null);
+    const peak = pre.length ? peakFrom(a.values, baseline) : [0, 0, 0, 0];
+    const saturated = [0, 0, 0, 0];
     for (const row of a.values) for (let ch = 0; ch < 4; ch++) {
-      if (baseline[ch] !== null) peak[ch] = Math.max(peak[ch], Math.abs(row[ch] - baseline[ch]));
       if (row[ch] <= 5 || row[ch] >= 4090) saturated[ch]++;
     }
     const {
@@ -384,9 +382,6 @@ export function mockValues(p, seconds, i, seed = 1) {
   const amplitude = 0.8 + rng() * 0.4;
   const weights = base.map(() => 0.85 + rng() * 0.3);
   const interval = 0.2 + rng() * 0.15;
-  // Each five repetitions contain one clipped strong trial, leaving enough
-  // clean single hits for calibration even when one rep is held out.
-  const clipped = p?.strength === 'strong' && ((p.rep ?? 1) + (seed >>> 0)) % 5 === 0;
   const onsets = [];
   let setStart = 0.4;
   for (let set = 0; set < (p?.sets ?? 1); set++) {
@@ -403,11 +398,7 @@ export function mockValues(p, seconds, i, seed = 1) {
         const onset = onsets[hit];
         const dt = seconds - onset;
         if (dt >= 0) {
-          const amp = {
-            weak: 350,
-            medium: 850,
-            strong: clipped ? 4000 : 800
-          }[p.strength ?? 'weak'];
+          const amp = 350;
           const weight = ch === zone ? 1 : ch === (zone ^ 3) ? 0.16 : 0.36;
           v += amp * (p.sets ? variations[hit].amplitude : amplitude) * weight * (p.sets ? variations[hit].weights[ch] : weights[ch]) * Math.exp(-dt * 40) * Math.cos(dt * 180);
         }
@@ -466,19 +457,14 @@ export function ignoresRecordingKeys(p) {
 export function instruction(p) {
   if (p.sets) {
     const zone = { lt: '左上', rt: '右上', lb: '左下', rb: '右下' }[p.zone];
-    const strength = { weak: '弱', medium: '中', strong: '強' }[p.strength];
-    return p.count === 1 ? `${zone}・${strength} を 3 回、ゆっくり叩く` : `${zone} を 2 回叩きで 2 セット`;
+    return p.count === 1 ? `${zone} を 1 回ずつ、間をあけて 3 回叩く` : `${zone} をダブルタップ（トントンと素早く 2 回）× 2 セット。セットの間はあける`;
   }
   return p.kind === 'tap' ? `${{
     lt: '左上',
     rt: '右上',
     lb: '左下',
     rb: '右下'
-  }[p.zone]}  ${p.count}回  ${{
-    weak: '弱',
-    medium: '中',
-    strong: '強'
-  }[p.strength]}` : {
+  }[p.zone]} を${p.count === 2 ? 'ダブルタップ（トントンと素早く 2 回）' : ` ${p.count} 回叩く`}` : {
     calibration: '机に触れず静止する',
     rest: '何もしない',
     typing: 'キーボードを普通に打つ（このウィンドウで打って大丈夫）',
@@ -561,12 +547,13 @@ export async function run(store, {
     }
     if (ui.stopped) break;
     source.prepare?.();
-    ui.say(`次: ${instruction(p)}`);
-    let ok = await wait(500);
+    ui.say(`[${p.id + 1}/${store.session.patterns.length}] 次: ${instruction(p)}`);
+    // Older sessions keep their original lead-in when resumed.
+    let ok = await wait((store.session.options.prepare ?? 1.5) * 1000 - BASELINE_MS);
     if (ok) {
       ui.setRecording?.(p);
       store.start(p);
-      ok = await wait(1000);
+      ok = await wait(BASELINE_MS);
     }
     if (ok) {
       store.cue();
@@ -591,20 +578,7 @@ export async function run(store, {
 
 // Count excursions with a 50 ms quiet gap so ringing is one mountain.
 export function countMountains(a, noise, rate) {
-  if (!noise || a.cue === null) return null;
-  const pre = a.values.slice(0, a.cue - a.from);
-  const baseline = channels.map((_, ch) => {
-    const sorted = pre.map(v => v[ch]).sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length ? (sorted[mid] + sorted[Math.ceil(sorted.length / 2) - 1]) / 2 : 0;
-  });
-  let last = -Infinity;
-  let count = 0;
-  for (let i = a.cue - a.from; i < a.values.length; i++) {
-    if (a.values[i].some((v, ch) => Math.abs(v - baseline[ch]) > noise[ch] * 3)) {
-      if (i - last > rate * 0.05) count++;
-      last = i;
-    }
-  }
-  return count;
+  if (a.phase === 'use' || !['cal_single', 'cal_double'].includes(a.kind) || !noise || a.cue === null) return null;
+  const cue = a.cue - a.from;
+  return stepHits(a.values.slice(0, cue), a.values.slice(cue), noise, rate).length;
 }

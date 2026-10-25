@@ -45,17 +45,17 @@ test('60 seconds / 240000 CSV samples in 2–3 byte chunks: 16 taps and saturati
   assert.match(writes[0],/^stream\n/)
   assert.match(writes[0],/\{"t":"ping"\}\n/)
   const hits=[],expected=[]
-  for(let region=0;region<4;region++) for(const count of [1,2]) for(const strength of ['weak','strong']) {
-    const n=4000+expected.length*10000,amp=strength==='strong'?900:400
+  for(let region=0;region<4;region++) for(const count of [1,2]) for(const amp of [400,900]) {
+    const n=4000+expected.length*10000
     hits.push({n,region,amp});if(count===2) hits.push({n:n+800,region,amp})
-    expected.push({region,count,strength})
+    expected.push({region,count})
   }
   hits.push({n:200000,region:3,amp:1850})
-  expected.push({region:3,count:1,strength:'strong'})
+  expected.push({region:3,count:1})
   const buffer=waveform(60,hits),taps=[]
   device.onTap(e=>taps.push(e))
   const start=performance.now();feed(port,buffer);const elapsed=performance.now()-start
-  assert.deepEqual(taps.map(({region,count,strength})=>({region,count,strength})),expected)
+  assert.deepEqual(taps.map(({region,count})=>({region,count})),expected)
   assert.equal(taps.at(-1).sat,true)
   assert.ok(taps.slice(0,-1).every(t=>t.sat===undefined))
   t.diagnostic(`240000 samples, ${buffer.length} bytes: ${elapsed.toFixed(1)} ms`)
@@ -75,10 +75,10 @@ test('local calibration cycle, negative ACK, persisted calibration and changed d
   feed(port,waveform(.5,[{n:100,region:0,amp:500}]),false)
   assert.equal(hits.length,1);assert.equal(hits[0].t,'hit');assert.ok(hits[0].ring>=10)
   await assert.rejects(device.saveCalibration({...defaultCalibration(),threshold:[-1,0,0,0]}),/拒否/)
-  const cal={...defaultCalibration(),templates:[[0,1,0,0],[1,0,0,0],[0,0,1,0],[0,0,0,1]],strongMin:[300,300,300,300]}
+  const cal={...defaultCalibration(),templates:[[0,1,0,0],[1,0,0,0],[0,0,1,0],[0,0,0,1]]}
   await device.saveCalibration(cal);await store.update(c=>({...c,calibration:cal}));await device.setMode('run')
   feed(port,waveform(.5,[{n:100,region:0,amp:500}]),false)
-  assert.equal(taps.at(-1).region,1);assert.equal(taps.at(-1).strength,'strong')
+  assert.equal(taps.at(-1).region,1);assert.equal('strength' in taps.at(-1),false)
   assert.deepEqual(writes,['stream\n'])
   const loaded=new ConfigStore(dir);await loaded.load();assert.deepEqual(loaded.config.calibration,cal)
   device.stop()
@@ -86,7 +86,7 @@ test('local calibration cycle, negative ACK, persisted calibration and changed d
   assert.equal(again.device.status.cal,true)
   const restored=[];again.device.onTap(e=>restored.push(e))
   feed(again.port,waveform(.5,[{n:100,region:0,amp:500}]),false)
-  assert.equal(restored[0].region,1);assert.equal(restored[0].strength,'strong')
+  assert.equal(restored[0].region,1)
 })
 
 test('session validation, consecutive hello, rate timing, local raw and isolated connection state',()=>{
@@ -141,4 +141,36 @@ test('SerialDevice bounds lines at 512, drops CR, recovers overflow across chunk
   feed(port,waveform(.5,[{n:100,region:2,amp:900}]))
   assert.equal(taps.length,1);assert.equal(taps[0].region,2)
   await device.setMode('calibrate') // Local synchronous ACK still resolves after overflow.
+})
+
+test('xiao-stream passes every valid row through with its rate, auto only for the winning adapter',()=>{
+  const rows=[],rates=[]
+  const session=getProtocol('xiao-stream').open({write(){},emit(){},sample:(v,r)=>{rows.push([...v]);rates.push(r)}})
+  session.receive('[desk] stream boot=1 ch=D0,D1,D3,D4 rate=2000')
+  session.receive('1,2,3,4');session.receive('bad');session.receive('5000,0,0,0');session.receive('5,6,7,8')
+  assert.deepEqual(rows,[[1,2,3,4],[5,6,7,8]]);assert.deepEqual(rates,[2000,2000])
+  const viaAuto=[]
+  const auto=getProtocol('auto').open({write(){},emit(){},sample:v=>viaAuto.push([...v])})
+  for(let i=0;i<7;i++) auto.receive('1900,1900,1900,1900')
+  assert.equal(viaAuto.length,0)
+  auto.receive('1900,1900,1900,1900');auto.receive('1,2,3,4')
+  assert.deepEqual(viaAuto.at(-1),[1,2,3,4])
+})
+
+test('disconnect reasons: no port, port held by another app, and a stream that goes silent',async t=>{
+    const statuses=[]
+  const none=new SerialDevice(()=> 'auto',{list:async()=>[],open:()=>{throw Error()}},1000,20)
+  none.onStatus(s=>statuses.push(s));none.start();await until(()=>statuses.length>0);none.stop()
+  assert.deepEqual(statuses[0],{state:'disconnected',reason:'no-port'})
+  const busy=new SerialDevice(()=> 'COM3',{list:async()=>[],open:()=>{const p=new Duplex({read(){},write(d,e,done){done()}});queueMicrotask(()=>p.destroy(Error('Opening COM3: Access denied')));return p}},1000,200)
+  t.after(()=>busy.stop());const busyStatuses=[];busy.onStatus(s=>busyStatuses.push(s));busy.start()
+  await until(()=>busyStatuses.some(s=>s.state==='disconnected'))
+  assert.deepEqual(busyStatuses.find(s=>s.state==='disconnected'),{state:'disconnected',reason:'busy'})
+  let opened=0
+  const silent=new SerialDevice(()=> 'COM4',{list:async()=>[],open:()=>{opened++
+    const p=new Duplex({read(){},write(data,enc,done){done();queueMicrotask(()=>p.push('1900,1910,1920,1930\n'.repeat(8)))}});return p}},5000,200,()=>getProtocol('xiao-stream'))
+  t.after(()=>silent.stop());const silentStatuses=[];silent.onStatus(s=>silentStatuses.push(s));silent.start()
+  await until(()=>silent.status.state==='connected')
+  for(let i=0;i<120 && silent.status.state==='connected';i++) await delay(25)
+  assert.deepEqual(silent.status,{state:'disconnected',reason:'no-response'});assert.equal(opened,1)
 })

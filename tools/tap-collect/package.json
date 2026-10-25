@@ -6,7 +6,7 @@
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "start": "node collect.mjs",
+    "start": "node collect.mjs --quick",
     "test": "node --test --test-isolation=none"
   },
   "dependencies": {

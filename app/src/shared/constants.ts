@@ -171,10 +171,8 @@ export const REGIONS = [
 ] as const
 
 export const PATTERNS = [
-  "1回 弱",
-  "1回 強",
-  "2回 弱",
-  "2回 強"
+  "1回",
+  "2回"
 ] as const
 
 export const ACTS: readonly {type: Action['type']; name: string; icon: IconId; color: ColorId; action: Action}[] = [
@@ -253,7 +251,7 @@ export const ACTS: readonly {type: Action['type']; name: string; icon: IconId; c
 ]
 
 export const DEFAULT_CONFIG: Config = {
-  "version": 1,
+  "version": 2,
   "profiles": [
     {
       "id": "work",
@@ -285,15 +283,6 @@ export const DEFAULT_CONFIG: Config = {
           }
         },
         {
-          "icon": "code",
-          "color": "indigo",
-          "action": {
-            "type": "launch",
-            "file": "Code.exe"
-          }
-        },
-        null,
-        {
           "icon": "playpause",
           "color": "green",
           "action": {
@@ -307,22 +296,6 @@ export const DEFAULT_CONFIG: Config = {
           "action": {
             "type": "media",
             "op": "next"
-          }
-        },
-        {
-          "icon": "volume",
-          "color": "green",
-          "action": {
-            "type": "media",
-            "op": "volUp"
-          }
-        },
-        {
-          "icon": "music",
-          "color": "yellow",
-          "action": {
-            "type": "launch",
-            "file": "Spotify.exe"
           }
         },
         {
@@ -342,15 +315,6 @@ export const DEFAULT_CONFIG: Config = {
           }
         },
         {
-          "icon": "bubble",
-          "color": "yellow",
-          "action": {
-            "type": "http",
-            "url": "https://hooks.slack.com/services/[YOUR WEBHOOK]"
-          }
-        },
-        null,
-        {
           "icon": "broadcast",
           "color": "red",
           "action": {
@@ -364,30 +328,13 @@ export const DEFAULT_CONFIG: Config = {
           "action": {
             "type": "lock"
           }
-        },
-        {
-          "icon": "send",
-          "color": "blue",
-          "action": {
-            "type": "http",
-            "url": "https://[YOUR WEBHOOK URL]"
-          }
-        },
-        null
+        }
       ]
     },
     {
       "id": "stream",
       "name": "配信",
       "keys": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
         null,
         null,
         null,
@@ -402,14 +349,6 @@ export const DEFAULT_CONFIG: Config = {
       "id": "game",
       "name": "ゲーム",
       "keys": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
         null,
         null,
         null,

@@ -17,10 +17,10 @@ export function keyStyle(value: DeskKey | null): CSSProperties {
 function MapKey({ index, value, selected, fire, pick }: { index: number; value: DeskKey | null; selected: boolean; fire: number | undefined; pick: () => void }) {
   const drag = useDraggable({ id: `key-${index}`, data: { type: 'key', index }, disabled: !value })
   const drop = useDroppable({ id: `slot-${index}`, data: { index } })
-  const r = Math.floor(index / 4), p = index % 4
+  const r = Math.floor(index / 2), p = index % 2
   return <button ref={node => { drag.setNodeRef(node); drop.setNodeRef(node) }}
     {...drag.listeners} {...(value ? drag.attributes : {})} type="button" className={`dk-key ${selected ? 'selected' : ''} ${drop.isOver ? 'over' : ''}`}
-    style={{ ...keyStyle(value), gridColumn: (r % 2 === 0 ? 2 : 5) + p % 2, gridRow: (r < 2 ? 2 : 5) + Math.floor(p / 2), opacity: drag.isDragging ? 0.35 : 1, animation: fire !== undefined ? 'dk-bump .32s ease-out' : undefined }}
+    style={{ ...keyStyle(value), gridColumn: (r % 2 === 0 ? 1 : 4) + p, gridRow: r < 2 ? 2 : 4, opacity: drag.isDragging ? 0.35 : 1, animation: fire !== undefined ? 'dk-bump .32s ease-out' : undefined }}
     aria-label={`${REGIONS[r]} ${PATTERNS[p]}`} aria-pressed={selected} onClick={pick}>
     {fire !== undefined && <span key={fire} className="key-fire"><span className="ripple" style={{ borderColor: value ? colorOf(value.color)[1] : '#EDEDED' }} /></span>}
     <span className="key-face"><KeyFace value={value} /></span>
@@ -28,8 +28,7 @@ function MapKey({ index, value, selected, fire, pick }: { index: number; value: 
 }
 export function DeskMap({ keys, selected, fired, locked, pick }: { keys: (DeskKey | null)[]; selected: number; fired: Record<number, number>; locked: boolean; pick: (index: number) => void }) {
   return <section aria-label="机" className="desk-section"><div className="desk-grid" style={{ opacity: locked ? 0.25 : 1 }}>
-    {[2, 3, 5, 6].map((column, i) => <span key={`col-${column}`} role="img" aria-label={i % 2 === 0 ? '弱' : '強'} className="grid-dots" style={{ gridColumn: column, gridRow: 1 }}><i style={{ width: i % 2 === 0 ? 7 : 12, height: i % 2 === 0 ? 7 : 12 }} /></span>)}
-    {[2, 3, 5, 6].map((row, i) => <span key={`row-${row}`} role="img" aria-label={i % 2 === 0 ? '1回' : '2回'} className="grid-dots vertical" style={{ gridColumn: 1, gridRow: row }}>{Array.from({ length: i % 2 + 1 }, (_, j) => <i key={j} />)}</span>)}
+    {[1, 2, 4, 5].map((column, i) => <span key={`col-${column}`} role="img" aria-label={PATTERNS[i % 2]} className="grid-dots" style={{ gridColumn: column, gridRow: 1 }}>{Array.from({ length: i % 2 + 1 }, (_, j) => <i key={j} />)}</span>)}
     {keys.map((value, index) => <MapKey key={index} index={index} value={value} selected={selected === index} fire={fired[index]} pick={() => pick(index)} />)}
   </div></section>
 }

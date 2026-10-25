@@ -20,9 +20,12 @@ const api: DeskApi = {
   listPorts: () => ipcRenderer.invoke(IPC.listPorts),
   calStart: () => ipcRenderer.invoke(IPC.calStart),
   calMeasureNoise: () => ipcRenderer.invoke(IPC.calMeasureNoise),
+  calRecord: () => ipcRenderer.invoke(IPC.calRecord),
+  calAbort: () => ipcRenderer.invoke(IPC.calAbort),
+  onCalCue: callback => subscribe(IPC.calCue, callback),
   onCalHit: callback => subscribe(IPC.calHit, callback),
   calSave: calibration => ipcRenderer.invoke(IPC.calSave, calibration),
   calCancel: () => ipcRenderer.invoke(IPC.calCancel),
-  ...(isMock ? { calMockHit: (region, strength) => ipcRenderer.invoke(IPC.calMockHit, region, strength) } : {})
+  ...(isMock ? { calMockHit: region => ipcRenderer.invoke(IPC.calMockHit, region) } : {})
 }
 contextBridge.exposeInMainWorld('deskapi', api)

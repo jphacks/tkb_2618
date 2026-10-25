@@ -10,3 +10,4 @@ release/
 .orca/
 serial-log-*.txt
 tap-logs/
+tools/tap-collect/scores/

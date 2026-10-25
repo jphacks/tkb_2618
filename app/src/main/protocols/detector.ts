@@ -1,17 +1,23 @@
 import type { Calibration, CalHit, Channels, DeviceEvent, Region, TapEvent } from '../../shared/types'
 import { isCalibration } from '../../shared/validation'
 
-export const defaultCalibration = (): Calibration => ({ threshold: [150, 150, 150, 150], strongMin: [700, 700, 700, 700], doubleWindowMs: 320, refractoryMs: 70 })
+export const defaultCalibration = (): Calibration => ({ threshold: [150, 150, 150, 150], doubleWindowMs: 320, refractoryMs: 70 })
 export const validCalibration = isCalibration
 const channels = (): Channels => [0, 0, 0, 0]
 const copy = (a: Channels): Channels => [...a]
 const f = Math.fround
+/** Nothing triggers during the first samples; then a channel whose first sample was a cut-off line (for example 301 for 3301) restarts at their median. */
+const WARMUP_SAMPLES = 8
+/** In run mode, a channel above its threshold this long is not a tap (taps ring and dip back): the DC jumped, so restart it there. */
+const STUCK_US = 2_000_000
 
 /** Port of DeskApiCore/Detector. Time is sample time in microseconds, never wall time. */
 export class Detector {
   private cal = defaultCalibration()
   private mode: 'run' | 'calibrate' | 'raw' = 'run'
   private initialized = false
+  private warmup?: Channels[] = []
+  private aboveSinceUs: (number | null)[] = [null, null, null, null]
   private dc = channels()
   private magnitudes = channels()
   private rawActive = false
@@ -47,10 +53,7 @@ export class Detector {
   setCalibration(cal: Calibration): boolean {
     if (!validCalibration(cal)) return false
     this.cal = structuredClone(cal)
-    for (let i = 0; i < 4; i++) {
-      this.cal.threshold[i] = f(this.cal.threshold[i])
-      this.cal.strongMin[i] = f(this.cal.strongMin[i])
-    }
+    for (let i = 0; i < 4; i++) this.cal.threshold[i] = f(this.cal.threshold[i])
     if (this.cal.templates) for (const row of this.cal.templates) {
       for (let i = 0; i < 4; i++) row[i] = f(row[i])
       const norm = Math.hypot(...row)
@@ -89,7 +92,6 @@ export class Detector {
     let region = 0, second = 0
     for (let i = 1; i < 4; i++) if (this.peaks[i] > this.peaks[region]) region = i
     for (let i = 0; i < 4; i++) if (i !== region) second = Math.max(second, this.peaks[i])
-    const amp = Math.max(...this.peaks)
     let confidence = this.peaks[region] === 0 ? 0 : f(1 - f(second / this.peaks[region]))
     if (this.cal.templates) {
       const norm = Math.hypot(...this.peaks)
@@ -102,12 +104,11 @@ export class Detector {
       }
       confidence = runner >= 1 ? 0 : Math.max(0, Math.min(1, f(f(best - runner) / f(1 - runner))))
     }
-    const event: TapEvent = { t: 'tap', region: region as Region, count: 1, strength: amp >= this.cal.strongMin[region] ? 'strong' : 'weak', confidence, ...sat }
+    const event: TapEvent = { t: 'tap', region: region as Region, count: 1, confidence, ...sat }
     if (this.pending) {
       if (event.region === this.pending.region && this.hitStartUs - this.pendingStartUs <= this.cal.doubleWindowMs * 1000) {
         this.pending.count = 2
         if (event.sat) this.pending.sat = true
-        if (event.strength === 'strong') this.pending.strength = 'strong'
         this.pending.confidence = Math.min(this.pending.confidence, event.confidence)
         this.emitPending()
         return
@@ -121,6 +122,16 @@ export class Detector {
     if (!this.initialized) {
       for (let i = 0; i < 4; i++) this.dc[i] = raw[i]
       this.initialized = true
+    }
+    if (this.warmup) {
+      this.warmup.push(copy(raw))
+      if (this.warmup.length === WARMUP_SAMPLES) {
+        for (let i = 0; i < 4; i++) {
+          const sorted = this.warmup.map(row => row[i]).sort((x, y) => x - y), median = sorted[Math.floor(sorted.length / 2)]
+          if (Math.abs(median - this.dc[i]) > this.cal.threshold[i]) this.dc[i] = median
+        }
+        this.warmup = undefined
+      }
     }
     if (this.mode === 'raw') {
       if (this.rawActive && nowUs - this.rawStartUs >= 10000) {
@@ -144,6 +155,9 @@ export class Detector {
       triggered ||= magnitude > this.cal.threshold[i]
       aboveQuiet ||= magnitude >= this.cal.threshold[i]
       if (!this.collecting && nowUs >= this.refractoryUntilUs && magnitude <= this.cal.threshold[i]) this.dc[i] = f(this.dc[i] + f(delta / 2048))
+      if (magnitude <= this.cal.threshold[i] || this.mode !== 'run') this.aboveSinceUs[i] = null
+      else if (this.aboveSinceUs[i] === null) this.aboveSinceUs[i] = nowUs
+      else if (nowUs - this.aboveSinceUs[i]! >= STUCK_US) { this.dc[i] = raw[i]; this.aboveSinceUs[i] = null }
     }
     if (this.measuring && nowUs >= this.noiseEndUs) {
       const rms = channels()
@@ -176,7 +190,7 @@ export class Detector {
         this.ringActive = false
       }
     }
-    if (!this.collecting && !(this.mode === 'calibrate' && this.ringActive) && nowUs >= this.refractoryUntilUs && triggered) {
+    if (!this.warmup && !this.collecting && !(this.mode === 'calibrate' && this.ringActive) && nowUs >= this.refractoryUntilUs && triggered) {
       this.collecting = true
       this.hitStartUs = nowUs
       this.ringActive = this.mode === 'calibrate'

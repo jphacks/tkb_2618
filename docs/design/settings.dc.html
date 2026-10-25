@@ -46,7 +46,7 @@ a{color:#8FB3FF}a:hover{color:#B5CCFF}
     </div>
 
     <section aria-label="机" style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 32px 0 0; overflow-x: auto">
-      <div style="display: grid; grid-template-columns: 20px 96px 96px 40px 96px 96px; grid-template-rows: 20px 96px 96px 40px 96px 96px; gap: 12px; opacity: {{gridOpacity}}">
+      <div style="display: grid; grid-template-columns: 96px 96px 40px 96px 96px; grid-template-rows: 20px 96px 40px 96px; gap: 12px; opacity: {{gridOpacity}}">
         <sc-for list="{{cells}}" as="c" hint-placeholder-count="24">
           <sc-if value="{{c.isHead}}" hint-placeholder-val="{{ false }}">
             <span role="img" aria-label="{{c.aria}}" style="grid-column: {{c.col}}; grid-row: {{c.row}}; display: flex; flex-direction: {{c.dir}}; align-items: center; justify-content: center; gap: 4px">
@@ -242,24 +242,16 @@ const ACTS = [
 const MEDIA_OPS = [['prev', '前の曲'], ['playpause', '再生 / 停止'], ['next', '次の曲'], ['volDown', '音量 −'], ['volUp', '音量 +'], ['mic', 'ミュート']];
 const PROFILES = ['作業', '配信', 'ゲーム'];
 const REGIONS = ['左上', '右上', '左下', '右下'];
-const PATTERNS = ['1回 弱', '1回 強', '2回 弱', '2回 強'];
+const PATTERNS = ['1回', '2回'];
 const INITIAL = [
   { icon: 'mic', slash: true, color: 'red', a: 'hotkey', p: { keys: ['Ctrl', 'Shift', 'M'] } },
   { icon: 'capture', color: 'blue', a: 'hotkey', p: { keys: ['Win', 'Shift', 'S'] } },
-  { icon: 'code', color: 'indigo', a: 'launch', p: { file: 'Code.exe' } },
-  null,
   { icon: 'playpause', color: 'green', a: 'media', p: { op: 'playpause' } },
   { icon: 'next', color: 'green', a: 'media', p: { op: 'next' } },
-  { icon: 'volume', color: 'green', a: 'media', p: { op: 'volUp' } },
-  { icon: 'music', color: 'yellow', a: 'launch', p: { file: 'Spotify.exe' } },
   { icon: 'terminal', color: 'indigo', a: 'launch', p: { file: 'wt.exe' } },
   { icon: 'hammer', color: 'yellow', a: 'command', p: { cmd: 'npm run build' } },
-  { icon: 'bubble', color: 'yellow', a: 'http', p: { url: 'https://hooks.slack.com/services/[YOUR WEBHOOK]' } },
-  null,
   { icon: 'broadcast', color: 'red', a: 'profile', p: { to: 1 } },
-  { icon: 'lock', color: 'indigo', a: 'lock', p: {} },
-  { icon: 'send', color: 'blue', a: 'http', p: { url: 'https://[YOUR WEBHOOK URL]' } },
-  null
+  { icon: 'lock', color: 'indigo', a: 'lock', p: {} }
 ];
 const colorOf = (id) => COLORS.find((c) => c[0] === id) || COLORS[4];
 const actOf = (id) => ACTS.find((a) => a[0] === id);
@@ -320,24 +312,20 @@ class Component extends DCLogic {
       commit(next, { over: null, sel: idx });
     };
 
-    // 上: 強弱（点の大きさ）、左: 回数（点の数）
+    // 領域ごとに横 2 キー。上: 回数（点の数）
     const cells = [];
-    [2, 3, 5, 6].forEach((col, i) => cells.push({
+    [1, 2, 4, 5].forEach((col, i) => cells.push({
       isHead: true, isKey: false, col: String(col), row: '1', dir: 'row',
-      aria: i % 2 === 0 ? '弱' : '強', dots: [{ sz: i % 2 === 0 ? 7 : 12 }]
-    }));
-    [2, 3, 5, 6].forEach((row, i) => cells.push({
-      isHead: true, isKey: false, col: '1', row: String(row), dir: 'column',
-      aria: i % 2 === 0 ? '1回' : '2回', dots: Array.from({ length: i % 2 + 1 }, () => ({ sz: 7 }))
+      aria: PATTERNS[i % 2], dots: Array.from({ length: i % 2 + 1 }, () => ({ sz: 7 }))
     }));
     keys.forEach((k, idx) => {
-      const r = Math.floor(idx / 4);
-      const p = idx % 4;
+      const r = Math.floor(idx / 2);
+      const p = idx % 2;
       const selected = idx === sel;
       cells.push({
         isHead: false, isKey: true,
-        col: String((r % 2 === 0 ? 2 : 5) + (p % 2)),
-        row: String((r < 2 ? 2 : 5) + Math.floor(p / 2)),
+        col: String((r % 2 === 0 ? 1 : 4) + p),
+        row: String(r < 2 ? 2 : 4),
         ...look(k), selected,
         bracket: !!k,
         fire: fire === idx,
@@ -363,8 +351,8 @@ class Component extends DCLogic {
     });
 
     const k = keys[sel];
-    const region = Math.floor(sel / 4);
-    const pat = sel % 4;
+    const region = Math.floor(sel / 2);
+    const pat = sel % 2;
     const m = [0, 1, 2, 3].map((qi) => (qi === region ? '#EDEDED' : '#2E2E2E'));
     const accentBg = k ? colorOf(k.color)[1] : '#EDEDED';
     const accentFg = k ? colorOf(k.color)[2] : '#121212';
@@ -372,7 +360,7 @@ class Component extends DCLogic {
       ...look(k), size: k ? 50 : 24, filled: !!k,
       trigger: `${REGIONS[region]} ${PATTERNS[pat]}`,
       m0: m[0], m1: m[1], m2: m[2], m3: m[3],
-      dots: Array.from({ length: pat < 2 ? 1 : 2 }, () => ({ sz: pat % 2 === 0 ? 7 : 12 })),
+      dots: Array.from({ length: pat + 1 }, () => ({ sz: 7 })),
       file: k && k.p.file, cmd: k && k.p.cmd, url: k && k.p.url
     };
 

@@ -5,14 +5,14 @@ import { readFileSync } from 'node:fs'
 import { IPC } from '../shared/ipc'
 import { ACTS, PATTERNS, REGIONS } from '../shared/constants'
 import { isConfig } from '../shared/validation'
-import { keyIndexOf, type Config, type Region, type TapEvent } from '../shared/types'
+import { KEY_COUNT, keyIndexOf, type Config, type Region, type TapEvent } from '../shared/types'
 import { ConfigStore } from './config'
 import { MockDevice, type Device } from './device'
 import { getProtocol } from './protocols'
 import { SerialDevice } from './serial-device'
 import { calculateCalibration, type Samples } from '../shared/calibration'
-import type { Noise } from '../shared/types'
 import { ActionRunner } from './actions'
+import { BASELINE_MS, record, recordStep, restFrom, REST_MS, type Rest } from './recorder'
 
 app.setName('DeskAPI')
 if (process.platform === 'win32') app.setAppUserModelId('jp.deskapi.app')
@@ -25,7 +25,8 @@ let device: Device
 let runner: ActionRunner
 let notification: Notification | undefined
 let calibrating = false
-let calibrationNoise: Noise | undefined
+let calibrationNoise: Rest | undefined
+let recording: AbortController | undefined
 let calibrationQueue: Promise<unknown> = Promise.resolve()
 function calibrationWork<T>(work: () => Promise<T>): Promise<T> {
   const result = calibrationQueue.then(work)
@@ -33,6 +34,7 @@ function calibrationWork<T>(work: () => Promise<T>): Promise<T> {
   return result
 }
 function cancelCalibration(): Promise<void> {
+  recording?.abort()
   return calibrationWork(async () => {
     try { if (calibrating && device.status.state === 'connected') await device.setMode('run') }
     finally { calibrating = false; calibrationNoise = undefined }
@@ -110,7 +112,7 @@ async function runTap(tap: TapEvent): Promise<void> {
   await runner.run(key.action, { index, profile: profile.name, tap })
   if (window?.isVisible()) send(IPC.tap, tap)
   else if (config.notify) {
-    notify(ACTS.find(a => a.type === key.action.type)!.name, `${REGIONS[tap.region]} · ${PATTERNS[index % 4]}`)
+    notify(ACTS.find(a => a.type === key.action.type)!.name, `${REGIONS[tap.region]} · ${PATTERNS[index % 2]}`)
   }
 }
 function handlers(): void {
@@ -129,9 +131,8 @@ function handlers(): void {
   handle(IPC.getDeviceStatus, () => device.status)
   handle(IPC.listPorts, () => device.listPorts())
   handle(IPC.runKey, async value => {
-    if (!Number.isInteger(value) || typeof value !== 'number' || value < 0 || value > 15) throw new Error('キー番号が正しくありません')
-    try { await runTap({ t: 'tap', region: Math.floor(value / 4) as Region, count: value % 4 < 2 ? 1 : 2,
-      strength: value % 2 === 0 ? 'weak' : 'strong', confidence: 1 }) } catch (error) { reportError(error); throw error }
+    if (!Number.isInteger(value) || typeof value !== 'number' || value < 0 || value >= KEY_COUNT) throw new Error('キー番号が正しくありません')
+    try { await runTap({ t: 'tap', region: Math.floor(value / 2) as Region, count: value % 2 === 0 ? 1 : 2, confidence: 1 }) } catch (error) { reportError(error); throw error }
   })
   handle(IPC.pickFile, async () => {
     const result = await dialog.showOpenDialog(window!, { properties: ['openFile'] })
@@ -151,17 +152,36 @@ function handlers(): void {
     calibrationNoise = undefined
     try { await device.setMode('calibrate') } catch (error) { await device.setMode('run').catch(() => {}); calibrating = false; throw error }
   }))
-  handle(IPC.calMeasureNoise, () => calibrationWork(async () => {
-    if (!calibrating) throw new Error('キャリブレーションが開始されていません')
-    calibrationNoise = await device.measureNoise()
-    return calibrationNoise
+  // Same procedure as tools/tap-collect: hits are counted only inside the prompted window, never from the live detector.
+  const abortable = <T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+    recording?.abort()
+    const controller = new AbortController()
+    recording = controller
+    return calibrationWork(async () => {
+      if (!calibrating) throw new Error('キャリブレーションが開始されていません')
+      try { return await work(controller.signal) } finally { if (recording === controller) recording = undefined }
+    })
+  }
+  const samples = device.onSample
+  handle(IPC.calMeasureNoise, () => abortable(async signal => {
+    const before = await record(samples, BASELINE_MS, undefined, signal)
+    calibrationNoise = restFrom(before.rows, (await record(samples, REST_MS, undefined, signal)).rows)
+    const { baseline: _, ...noise } = calibrationNoise
+    return noise
   }))
+  handle(IPC.calRecord, () => abortable(async signal => {
+    if (!calibrationNoise) throw new Error('静止の測定がまだです')
+    return await recordStep(samples, calibrationNoise, () => send(IPC.calCue, undefined), hit => send(IPC.calHit, hit), signal)
+  }))
+  handle(IPC.calAbort, () => { recording?.abort() })
   handle(IPC.calSave, value => calibrationWork(async () => {
     if (!calibrating || !calibrationNoise || !Array.isArray(value) || !value.every(Array.isArray)) throw new Error('キャリブレーション値が正しくありません')
-    const cal = calculateCalibration(calibrationNoise, value as Samples)
+    const { baseline: _, ...noise } = calibrationNoise
+    const cal = calculateCalibration(noise, value as Samples)
     try {
       await device.saveCalibration(cal)
-      await updateConfig(config => ({ ...config, calibration: cal }))
+      // Mock hits are made up; never let them become the calibration a real device starts with.
+      if (!isMock) await updateConfig(config => ({ ...config, calibration: cal }))
     }
     finally {
       try { if (device.status.state === 'connected') await device.setMode('run') }
@@ -169,9 +189,9 @@ function handlers(): void {
     }
   }))
   handle(IPC.calCancel, cancelCalibration)
-  if (isMock) handle(IPC.calMockHit, (region, strength) => {
-    if (typeof region !== 'number' || ![0, 1, 2, 3].includes(region) || (strength !== 'weak' && strength !== 'strong')) throw new Error('打撃が正しくありません')
-    ;(device as MockDevice).mockHit(region as Region, strength)
+  if (isMock) handle(IPC.calMockHit, region => {
+    if (typeof region !== 'number' || ![0, 1, 2, 3].includes(region)) throw new Error('打撃が正しくありません')
+    ;(device as MockDevice).mockHit(region as Region)
   })
 }
 async function createWindow(): Promise<void> {
@@ -189,6 +209,8 @@ async function createWindow(): Promise<void> {
   if (process.env.ELECTRON_RENDERER_URL && !app.isPackaged) await window.loadURL(process.env.ELECTRON_RENDERER_URL)
   else await window.loadFile(join(__dirname, '../renderer/index.html'))
 }
+// Development: keep a test run (for example the mock, whose random taps run the assigned actions) off the real settings.
+if (process.env.DESKAPI_USER_DATA) app.setPath('userData', process.env.DESKAPI_USER_DATA)
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', showWindow)
@@ -203,14 +225,24 @@ else {
     autostart()
     handlers()
     device.onTap(tap => { void runTap(tap).catch(reportError) })
-    device.onCalHit(hit => send(IPC.calHit, hit))
-    device.onStatus(status => { if (status.state === 'disconnected') { calibrating = false; calibrationNoise = undefined }; send(IPC.deviceStatus, status); updateTray() })
+    let wasConnected = false
+    device.onStatus(status => {
+      if (status.state === 'disconnected') { recording?.abort(); calibrating = false; calibrationNoise = undefined }
+      // With the window open the renderer shows its own dialog.
+      if (wasConnected && !quitting && status.state !== 'connected' && !window?.isVisible()) notify('DeskAPI', 'デバイスとの接続が切れました。机を叩いても動きません')
+      wasConnected = status.state === 'connected'
+      send(IPC.deviceStatus, status); updateTray()
+    })
     if (process.platform === 'win32') {
       tray = new Tray(trayImage())
       tray.on('click', showWindow)
     } else console.info('[Windows tray skipped]')
     updateTray()
     device.start()
+    // Started in the tray at login: say so if the device never showed up.
+    setTimeout(() => {
+      if (device.status.state !== 'connected' && !window?.isVisible()) notify('DeskAPI', 'デバイスにつながっていません。机を叩いても動きません')
+    }, 10000)
     await createWindow()
   }).catch(error => { reportError(error); app.quit() })
   app.on('before-quit', event => {

@@ -9,7 +9,6 @@ import {
   run,
   channels,
   clock,
-  instruction,
   ignoresRecordingKeys,
 } from './core.mjs';
 
@@ -112,9 +111,9 @@ export class Terminal {
       (a.values.length - (cued ? a.cue - a.from : 0)) / rate,
     );
     const filled = Math.min(20, Math.floor((elapsed / a.seconds) * 20));
-    const label = cued ? (a.kind === 'tap' ? '叩いて' : instruction(a)) : '合図待ち';
+    const label = cued ? '' : '合図待ち  ';
     this.output.write(
-      `\r\x1b[K${label}  ${'▮'.repeat(filled)}${'▯'.repeat(20 - filled)}  ${elapsed.toFixed(1)} / ${a.seconds} 秒`,
+      `\r\x1b[K${label}${'▮'.repeat(filled)}${'▯'.repeat(20 - filled)}  ${elapsed.toFixed(1)} / ${a.seconds} 秒`,
     );
     this.lineVisible = true;
   }
@@ -133,7 +132,8 @@ export class Terminal {
       for (const values of a.values) peak = Math.max(peak, Math.abs(values[ch] - base));
       return `${name.split(' ')[0]} ${peak}`;
     });
-    this.say(`${peaks.join(' / ')}  山 ${a.mountains ?? '—'}  欠け ${a.dropped}  不正行 ${a.badLines}`);
+    const mountains = a.mountains == null ? '' : `  山 ${a.mountains}`;
+    this.say(`${peaks.join(' / ')}${mountains}  欠け ${a.dropped}  不正行 ${a.badLines}`);
   }
   close() {
     this.input.off('keypress', this.handler);
@@ -246,11 +246,19 @@ function summary(store, ui) {
       `${label}: ${[0, 1, 2, 3].map((ch) => (rows.reduce((n, r) => n + r.peak[ch], 0) / rows.length).toFixed(1)).join(' / ')}`,
     );
 }
+export async function resolvePort(o, list = () => SerialPort.list()) {
+  if (o.port || o.mock || o.resume) return o.port;
+  const ports = await list();
+  if (!ports.length) throw Error('シリアルポートがありません。ESP32 を USB で接続してください');
+  if (ports.length > 1) throw Error(`ポートが複数あります: ${ports.map(p => p.path).join(', ')}。npm start -- --port <ポート名> で指定してください`);
+  return ports[0].path;
+}
+
 export async function main(args = process.argv.slice(2)) {
   const o = options(args);
   if (o.help) {
     console.log(
-      'node collect.mjs --port COM5 | --mock | --resume <dir>\n--list --reps 3 --zones lt,rt,lb,rb --counts 1,2 --strengths weak,strong\n--no-extra --order shuffle|sequential --seed <整数> --window 2\n--table <メモ> --sensors <メモ> --out tap-logs',
+      'npm start（ポート自動検出・メモ入力を省略して開始）\nnode collect.mjs [--port COM5] | --mock | --resume <dir>\n--quick --list --reps 1 --zones lt,rt,lb,rb --counts 1,2\n--no-extra --order shuffle|sequential --seed <整数> --window 5 --prepare 2\n--table <メモ> --sensors <メモ> --out tap-logs',
     );
     return;
   }
@@ -259,15 +267,18 @@ export async function main(args = process.argv.slice(2)) {
       console.log(`${p.path}  ${p.manufacturer ?? ''}`);
     return;
   }
-  if (!o.resume && !o.mock && !o.port)
-    throw Error('--port または --mock を指定してください');
   if (!process.stdin.isTTY) throw Error('対話端末で実行してください');
+  o.port = await resolvePort(o);
   const ui = new Terminal();
   let store, source;
   try {
     if (!o.resume) {
-      o.table ??= await (ui.say('机のメモ'), ui.note());
-      o.sensors ??= await (ui.say('センサーのメモ'), ui.note());
+      if (!o.quick) {
+        o.table ??= await (ui.say('机のメモ'), ui.note());
+        o.sensors ??= await (ui.say('センサーのメモ'), ui.note());
+      }
+      o.table ??= '';
+      o.sensors ??= '';
       if (ui.stopped) return;
     }
     store = new Store(o);

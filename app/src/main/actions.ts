@@ -17,7 +17,7 @@ export class ActionRunner {
     if (action.type === 'http') {
       const response = await fetch(action.url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: context.index, region: context.tap.region, count: context.tap.count,
-          strength: context.tap.strength, profile: context.profile, at: new Date().toISOString() }), signal: AbortSignal.timeout(5000) })
+          profile: context.profile, at: new Date().toISOString() }), signal: AbortSignal.timeout(5000) })
       await response.body?.cancel()
       if (!response.ok) throw new Error(`Webhook に失敗しました: HTTP ${response.status}`)
       return

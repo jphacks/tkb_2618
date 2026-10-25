@@ -4,9 +4,9 @@ import readline from 'node:readline';
 
 export const zones = ['lt', 'rt', 'lb', 'rb'];
 
-export const labels = zones.flatMap(z => [1, 2].flatMap(c => ['weak', 'strong'].map(s => `${z}_${c}_${s}`)));
+export const labels = zones.flatMap(z => [1, 2].map(c => `${z}_${c}`));
 
-export const label = t => `${t.zone}_${t.count}_${t.strength}`;
+export const label = t => `${t.zone}_${t.count}`;
 
 export function loadSession(dir) {
   dir = fs.realpathSync(dir);
@@ -120,8 +120,7 @@ export function summarize(results) {
   return {
     detection: rate(tapRows.filter(r => r.taps.length).length, tapRows.length),
     exact: rate(single.filter(r => label(r.truth) === label(r.taps[0])).length, tapRows.length),
-    withoutStrength: rate(single.filter(r => r.truth.zone === r.taps[0].zone && r.truth.count === r.taps[0].count).length, tapRows.length),
-    ...Object.fromEntries(['zone', 'count', 'strength'].map(k => [k, rate(single.filter(r => r.truth[k] === r.taps[0][k]).length, single.length)])),
+    ...Object.fromEntries(['zone', 'count'].map(k => [k, rate(single.filter(r => r.truth[k] === r.taps[0][k]).length, single.length)])),
     extra: tapRows.filter(r => r.taps.length > 1).length,
     nonTap,
     outside: {

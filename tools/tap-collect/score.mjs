@@ -106,13 +106,11 @@ export async function score(o) {
       ...training.flatMap(t => t.diagnostics ? diagnosticTable(t.diagnostics) : ['キャリブレーション失敗: ' + t.error, '']),
       '| 指標 | 正解 / 分母 | 割合 |',
       '|---|---:|---:|',
-      ...['detection', 'exact', 'withoutStrength', 'zone', 'count', 'strength'].map(k => `| ${{
+      ...['detection', 'exact', 'zone', 'count'].map(k => `| ${{
         detection: '検出',
         exact: '完全一致',
-        withoutStrength: '強さを無視した一致',
         zone: '領域',
-        count: '回数',
-        strength: '強さ'
+        count: '回数'
       }[k]} | ${metrics[k].correct} / ${metrics[k].total} | ${(metrics[k].rate * 100).toFixed(1)}% |`),
       `| 余計 | ${metrics.extra} | |`,
       '',

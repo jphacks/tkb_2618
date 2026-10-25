@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assign, summarize, makeFolds } from '../scoring.mjs';
+import { assign, summarize, makeFolds, labels } from '../scoring.mjs';
 import { score } from '../score.mjs';
 import { fixture } from '../test-support/mock-session.mjs';
 test('割り当て、境界、redo、成分一致、余計と試行外', () => {
@@ -48,17 +48,22 @@ test('割り当て、境界、redo、成分一致、余計と試行外', () => {
   });
   assert.equal(m.detection.correct, 2);
   assert.equal(m.extra, 1);
-  for (const k of ['zone', 'count', 'strength']) assert.equal(m[k].rate, 1);
+  for (const k of ['zone', 'count']) assert.equal(m[k].rate, 1);
   assert.equal(m.outside.count, 2);
   assert.equal(m.nonTap.typing, 1);
-  assert.equal(m.confusion.lt_1_weak.none, 1);
-  assert.equal(m.confusion.lt_1_weak.multiple, 1);
+  assert.equal(m.confusion.lt_1.none, 1);
+  assert.equal(m.confusion.lt_1.multiple, 1);
+  assert.equal(labels.length, 8);
+  assert.deepEqual(Object.keys(m.confusion), labels);
+  assert.ok(Object.values(m.confusion).every(row => Object.keys(row).length === 10));
   assert.equal(m.outside.seconds, 5);
   const partial = summarize([assign(session, [tap(10, {
     strength: 'strong'
   })], undefined, 140)]);
-  assert.equal(partial.withoutStrength.correct, 1);
-  assert.equal(partial.strength.correct, 0);
+  assert.equal(partial.exact.correct, 1);
+  assert.equal(partial.confusion.lt_1.lt_1, 1);
+  assert.ok(!('withoutStrength' in partial));
+  assert.ok(!('strength' in partial));
 });
 let shared;
 function setup() {
@@ -84,8 +89,8 @@ test('phase で学習・採点を分離、旧形式と旧オプションを拒�
   const folds = makeFolds({ session: [dir, dir] });
   assert.equal(folds.length, 2);
   for (const fold of folds) {
-    assert.equal(fold.train[0].trials.filter(fold.training).length, 13);
-    assert.equal(fold.test[0].trials.filter(fold.testing).length, 52);
+    assert.equal(fold.train[0].trials.filter(fold.training).length, 9);
+    assert.equal(fold.test[0].trials.filter(fold.testing).length, 12);
     assert.ok(fold.train[0].trials.every(t => !(fold.training(t) && fold.testing(t))));
   }
   assert.equal(makeFolds({ calibrate: [dir], test: [dir] }).length, 1);
@@ -95,7 +100,7 @@ test('phase で学習・採点を分離、旧形式と旧オプションを拒�
   fs.writeFileSync(path.join(legacy, 'trials.jsonl'), JSON.stringify({ id: 0, kind: 'calibration', status: 'ok' }) + '\n');
   assert.throws(() => makeFolds({ session: [legacy] }), /キャリブレーションの部がありません/);
 });
-for (const detector of ['app', 'takker']) test(`${detector}: 既定 mockValues の 2 部構成`, {
+for (const detector of ['app', 'takker']) test(`${detector}: ${detector === 'app' ? '既定 mockValues の 2 部構成' : '外部検出器用の旧ログ形式'}`, {
   skip: detector === 'takker' && !process.env.TAKKER_RUNTIME ? 'TAKKER_RUNTIME 未指定のため skip' : false
 }, async () => {
   const {
@@ -104,17 +109,18 @@ for (const detector of ['app', 'takker']) test(`${detector}: 既定 mockValues �
   } = setup();
   const result = await score({
     detector,
-    session: [dir],
+    session: [detector === 'takker' ? fixture(root, { legacy: true }) : dir],
     takker: process.env.TAKKER_RUNTIME,
     out: path.join(root, detector)
   });
   assert.ok(result.report.metrics.exact.rate > 0, JSON.stringify(result.report.training.map(t => t.error)));
   assert.ok(result.report.training.every(t => !t.error));
-  assert.equal(result.report.metrics.exact.total, 48);
+  assert.equal(result.report.metrics.exact.total, detector === 'takker' ? 16 : 8);
+  assert.doesNotMatch(fs.readFileSync(path.join(result.out, 'score.md'), 'utf8'), /withoutStrength|strongMin|強さ|強弱/);
   for (const f of ['score.md', 'score.json', 'predictions.jsonl']) assert.ok(fs.statSync(path.join(result.out, f)).size > 0);
 });
 
-test('診断の検出数・飽和・強弱の重なり・2 回叩き間隔', async () => {
+test('診断の検出数・飽和・2 回叩き間隔と打数不足の警告', async () => {
   const { diagnose, diagnosticTable } = await import('../diagnostics.mjs');
   const trial = (n, kind, cue, strength) => ({
     n, label: kind, kind, cue, to: cue + 5000,
@@ -133,7 +139,47 @@ test('診断の検出数・飽和・強弱の重なり・2 回叩き間隔', asy
   const d = diagnose([session], hits, 420, { threshold: 123 });
   assert.deepEqual(d.intervals.map(r => [r.detected, r.expected, r.saturated]),
     [[3, 3, 0], [3, 3, 1], [4, 4, 0]]);
-  assert.equal(d.ranges[0].overlap, true);
+  assert.ok(!('ranges' in d));
   assert.deepEqual(d.double, { min: 250, mean: 375, max: 500, waitMs: 420, warning: true });
-  assert.match(diagnosticTable(d).join('\n'), /⚠ 重なり/);
+  assert.doesNotMatch(diagnosticTable(d).join('\n'), /強弱|振幅/);
+  const missing = diagnose([session], hits.slice(1), 420, {});
+  assert.equal(missing.intervals[0].warning, true);
+  assert.match(diagnosticTable(missing).join('\n'), /2 \/ 3 ⚠/);
+});
+
+test('app: 150未満の弱い打撃も静止ピークの1.5倍で抽出して校正できる', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tap-score-quiet-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = fixture(root, { gain: 0.1 });
+  const result = await score({ detector: 'app', session: [dir], out: path.join(root, 'score') });
+  assert.equal(result.report.training[0].error, null);
+  const model = result.report.training[0].model;
+  assert.ok(model.hits.every(hits => hits.length === 3));
+  assert.ok(model.hits.flat().every(hit => Math.max(...hit.peaks) < 150));
+  assert.ok(model.calibrationThresholds.every(t => t.threshold.every((v, ch) => v === t.peak[ch] * 1.5)));
+  assert.ok(result.report.metrics.exact.rate > 0);
+});
+
+test('app: 旧ログの校正・使用ラベルを8キーとして最後まで採点する', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tap-score-legacy-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = fixture(root, { legacy: true });
+  const fold = makeFolds({ session: [dir] })[0];
+  const singles = fold.train[0].trials.filter(t => fold.training(t) && t.kind === 'cal_single');
+  assert.equal(singles.length, 8);
+  assert.ok(singles.every(t => t.label === `cal_single_${t.zone}_${t.strength}`));
+  const result = await score({ detector: 'app', session: [dir], out: path.join(root, 'score') });
+  const { metrics, training } = result.report;
+  assert.equal(training[0].error, null);
+  assert.equal(training[0].model.hits.length, 4);
+  assert.ok(training[0].model.hits.every(h => h.length === 3));
+  assert.equal(metrics.exact.total, 16);
+  assert.ok(metrics.exact.correct > 0);
+  const predictions = fs.readFileSync(path.join(result.out, 'predictions.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.ok(predictions.some(r => /_weak$/.test(r.truth.label) && r.taps.length === 1));
+  assert.ok(predictions.some(r => /_strong$/.test(r.truth.label) && r.taps.length === 1));
+  assert.deepEqual(Object.keys(metrics.confusion), labels);
+  assert.equal(Object.values(metrics.confusion).flatMap(Object.values).reduce((a, b) => a + b, 0), 16);
+  assert.ok(!('strength' in metrics));
+  assert.doesNotMatch(fs.readFileSync(path.join(result.out, 'score.md'), 'utf8'), /強さ|強弱|withoutStrength|strongMin/);
 });

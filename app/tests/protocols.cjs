@@ -29,7 +29,7 @@ test('CSV firmware without calibration, version or calibration state connects an
     id: 'test-csv', serial: { baudRate: 9600 }, capabilities: { calibration: false, raw: false },
     open(io) { return {
       handshake: { send: 'identify\n', isHello: e => e.t === 'hello', timeoutMs: 50 },
-      receive(line) { if(line === 'ready') io.emit({t:'hello'}); if(line === '0,2,strong') io.emit({t:'tap', region:0,count:2,strength:'strong',confidence:1}) },
+      receive(line) { if(line === 'ready') io.emit({t:'hello'}); if(line === '0,2,strong') io.emit({t:'tap', region:0,count:2,confidence:1}) },
       send: () => false
     } }
   }
@@ -61,7 +61,10 @@ test('v1 accepts optional hello fields and encodes all commands including raw mo
   for (const hello of [{ t: 'hello' }, { t: 'hello', cal: false }, { t: 'hello', fw: 'v' }])
     { protocol.receive(JSON.stringify(hello)); assert.deepEqual(events.at(-1), hello) }
   for (const command of [{ t: 'ping' }, { t: 'mode', mode: 'raw' }, { t: 'measure_noise', ms: 2000 }, { t: 'set_cal', cal: { threshold: [1,2,3,4] } }])
-    { assert.equal(protocol.send(command), true); assert.deepEqual(JSON.parse(writes.at(-1)), command) }
+    { assert.equal(protocol.send(command), true); assert.deepEqual(JSON.parse(writes.at(-1)), command.t === 'set_cal' ? { ...command, cal: { ...command.cal, strongMin: [4095,4095,4095,4095] } } : command) }
+  // The firmware still reports strength; the app drops it.
+  protocol.receive('{"t":"tap","region":1,"count":2,"strength":"strong","confidence":0.5}')
+  assert.deepEqual(events.at(-1), { t: 'tap', region: 1, count: 2, confidence: 0.5 })
 })
 test('legacy config gets default protocol without losing settings', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'deskapi-legacy-'))

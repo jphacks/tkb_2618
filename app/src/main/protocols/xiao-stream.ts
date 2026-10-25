@@ -19,6 +19,8 @@ export function openXiaoStream(io: ProtocolIO, greetOnBoot = true): ProtocolSess
   }
   return {
     handshake: { send: 'stream\n', isHello: e => e.t === 'hello', timeoutMs: 3000 },
+    // 4000 lines per second; silence means the board reset, crashed or stopped streaming.
+    idleTimeoutMs: 2000,
     receive(line) {
       if (line.startsWith('[desk] stream')) {
         const rate = /\brate=(\d+)\b/.exec(line)
@@ -35,6 +37,7 @@ export function openXiaoStream(io: ProtocolIO, greetOnBoot = true): ProtocolSess
       nowUs += intervalUs
       if (++consecutive >= 8) hello()
       detector.sample(raw, nowUs)
+      io.sample?.(raw, 1e6 / intervalUs)
     },
     send(command) {
       switch (command.t) {

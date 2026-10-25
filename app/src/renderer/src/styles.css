@@ -31,9 +31,8 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .cal-control { position: relative; display: flex; }
 .cal-needed { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #D62413; top: 5px; right: 5px; pointer-events: none; }
 .desk-section { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 32px 0 0; overflow-x: auto; }
-.desk-grid { display: grid; grid-template-columns: 20px 96px 96px 40px 96px 96px; grid-template-rows: 20px 96px 96px 40px 96px 96px; gap: 12px; flex-shrink: 0; padding: 6px; }
+.desk-grid { display: grid; grid-template-columns: 96px 96px 40px 96px 96px; grid-template-rows: 20px 96px 40px 96px; gap: 12px; flex-shrink: 0; padding: 6px; }
 .grid-dots { display: flex; align-items: center; justify-content: center; gap: 4px; }
-.grid-dots.vertical { flex-direction: column; }
 .grid-dots i { display: block; width: 7px; height: 7px; border-radius: 50%; background: #5A5A5A; }
 .dk-key, .drag-key { width: 96px; height: 96px; padding: 0; border-radius: 24px; position: relative; display: flex; align-items: center; justify-content: center; touch-action: none; }
 .dk-key { transition: transform .12s ease, filter .12s ease; }
@@ -59,7 +58,7 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .region-mini { display: grid; grid-template-columns: repeat(2, 14px); gap: 3px; }
 .region-mini i { width: 14px; height: 14px; border-radius: 4px; }
 .trigger-dots { display: flex; align-items: center; gap: 4px; height: 12px; }
-.trigger-dots i { border-radius: 50%; background: #EDEDED; }
+.trigger-dots i { width: 7px; height: 7px; border-radius: 50%; background: #EDEDED; }
 .action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .action-tile { height: 64px; border-radius: 14px; cursor: grab; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0 4px; touch-action: none; }
 .action-tile span { font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; pointer-events: none; }
@@ -105,7 +104,7 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .calibration-page { display: flex; flex-direction: column; min-height: calc(100vh - 32px); margin-top: 32px; padding: 20px 40px 40px; }
 .calibration-header { display: flex; align-items: center; gap: 16px; }
 .calibration-header .icon-button svg { width: 16px; height: 16px; }
-.progress-segments { flex-grow: 1; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; max-width: 520px; margin: 0 auto; }
+.progress-segments { flex-grow: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; max-width: 520px; margin: 0 auto; }
 .progress-segments span { height: 4px; border-radius: 2px; }
 .calibration-section { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; padding-top: 24px; }
 .calibration-map-wrap { position: relative; }
@@ -114,7 +113,6 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 .cal-breathe { position: absolute; inset: 0; border-radius: 36px; border: 3px solid #2214D6; animation: dk-breathe 1.8s ease-in-out infinite; pointer-events: none; }
 .cal-ripple { position: absolute; inset: 0; border-radius: 36px; border: 4px solid #FFFFFF; animation: cal-ripple .5s ease-out forwards; pointer-events: none; }
 .cal-verb { display: flex; align-items: center; gap: 10px; height: 28px; pointer-events: none; }
-.cal-verb i { border-radius: 50%; background: #FFFFFF; }
 .cal-verb span { font-size: 18px; font-weight: 700; }
 .cal-pips { display: flex; gap: 8px; pointer-events: none; }
 .cal-pips i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #FFFFFF; }
@@ -133,3 +131,18 @@ input { min-width: 0; background: transparent; border: 0; color: inherit; }
 @keyframes dk-fill { from { stroke-dashoffset: 302; } to { stroke-dashoffset: 0; } }
 @keyframes cal-ripple { from { transform: scale(1); opacity: .9; } to { transform: scale(1.18); opacity: 0; } }
 @keyframes dk-connecting { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.calibration-section .cal-hint { height: 20px; margin: -24px 0 0; font-size: 15px; font-weight: 700; color: #EDEDED; }
+.noise-overlay.cal-error span { max-width: 360px; text-align: center; line-height: 1.6; }
+.device-dialog-backdrop { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .6); }
+.device-dialog { position: relative; width: 440px; max-width: calc(100vw - 32px); padding: 32px; border-radius: 24px; background: #1A1A1A; display: flex; flex-direction: column; gap: 16px; }
+.device-dialog > .icon-button { position: absolute; top: 16px; right: 16px; }
+.device-dialog-icon { width: 56px; height: 56px; border-radius: 28px; background: #D62413; color: #FFFFFF; display: flex; align-items: center; justify-content: center; }
+.device-dialog h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.device-dialog p { margin: 0; font-size: 14px; line-height: 1.7; color: #BDBDBD; }
+.device-dialog .dialog-actions { display: flex; gap: 8px; margin-top: 8px; }
+.device-dialog .dialog-actions button { height: 44px; padding: 0 20px; border-radius: 22px; font-size: 14px; font-weight: 700; }
+.device-dialog .dialog-primary { background: #EDEDED; color: #121212; }
+.device-dialog .dialog-primary:hover { filter: brightness(1.12); }
+.device-dialog .dialog-secondary { background: #262626; color: #EDEDED; }
+.cal-window { position: absolute; left: 36px; right: 36px; bottom: 22px; height: 3px; border-radius: 2px; background: #FFFFFF; opacity: .7; transform-origin: left; animation: cal-window 5s linear forwards; pointer-events: none; }
+@keyframes cal-window { from { transform: scaleX(1); } to { transform: scaleX(0); } }
