@@ -121,7 +121,7 @@ a{color:#8FB3FF}a:hover{color:#B5CCFF}
               </span>
             </sc-for>
             <div style="flex-grow: 1"></div>
-            <button class="dk-ghost" aria-label="キーを記録" title="キーを記録" style="width: 44px; height: 44px; border-radius: 22px; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><span style="width: 14px; height: 14px; border-radius: 50%; background: #D62413"></span></button>
+            <button class="dk-ghost" aria-label="キーを記録" title="キーを記録" style="width: 44px; height: 44px; border-radius: 22px; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><span style="width: 14px; height: 14px; border-radius: 50%; background: #D12052"></span></button>
           </div>
         </sc-if>
 
@@ -225,17 +225,17 @@ const ICON_LIST = [
   ['volume', '音量'], ['music', '音楽'], ['terminal', 'ターミナル'], ['hammer', 'ビルド'], ['bubble', 'メッセージ'], ['lock', 'ロック'],
   ['keyboard', 'キーボード'], ['send', '送信'], ['layers', 'レイヤー'], ['broadcast', '配信'], ['star', 'スター'], ['bolt', '稲妻']
 ];
-// テーマ: Adobe Color「マイ Color テーマ」。明るい緑と黄はアイコンを黒にする
+// テーマ: 発表スライドのパレット。紺以外はアイコンを黒にする
 const COLORS = [
-  ['red', '#D62413', '#FFFFFF', '赤'], ['yellow', '#D6B813', '#121212', '黄'], ['green', '#13D66A', '#121212', '緑'],
-  ['blue', '#2214D6', '#FFFFFF', '青'], ['indigo', '#3C3781', '#FFFFFF', '紺']
+  ['red', '#D12052', '#121212', '赤'], ['orange', '#F45B26', '#121212', '橙'], ['yellow', '#F8DE22', '#121212', '黄'],
+  ['cyan', '#03AED2', '#121212', '水色'], ['indigo', '#3C3781', '#FFFFFF', '紺']
 ];
 const ACTS = [
-  ['hotkey', 'キー入力', 'keyboard', 'blue', { keys: ['Ctrl', 'C'] }],
+  ['hotkey', 'キー入力', 'keyboard', 'cyan', { keys: ['Ctrl', 'C'] }],
   ['launch', 'アプリ', 'app', 'indigo', { file: 'notepad.exe' }],
-  ['media', 'メディア', 'playpause', 'green', { op: 'playpause' }],
+  ['media', 'メディア', 'playpause', 'orange', { op: 'playpause' }],
   ['command', 'コマンド', 'terminal', 'yellow', { cmd: 'echo hello' }],
-  ['http', 'Webhook', 'send', 'blue', { url: 'https://[YOUR WEBHOOK URL]' }],
+  ['http', 'Webhook', 'send', 'cyan', { url: 'https://[YOUR WEBHOOK URL]' }],
   ['profile', 'プロファイル', 'layers', 'red', { to: 1 }],
   ['lock', 'ロック', 'lock', 'indigo', {}]
 ];
@@ -247,11 +247,11 @@ const INITIAL = [
   { icon: 'music', color: 'red', a: 'launch', p: { file: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' } },
   { icon: 'star', color: 'yellow', a: 'launch', p: { file: 'https://jphacks.com/' } },
   { icon: 'app', color: 'red', a: 'launch', p: { file: 'powerpnt.exe' } },
-  { icon: 'app', color: 'blue', a: 'launch', p: { file: 'winword.exe' } },
-  { icon: 'app', color: 'green', a: 'launch', p: { file: 'excel.exe' } },
+  { icon: 'app', color: 'cyan', a: 'launch', p: { file: 'winword.exe' } },
+  { icon: 'app', color: 'orange', a: 'launch', p: { file: 'excel.exe' } },
   { icon: 'keyboard', color: 'yellow', a: 'launch', p: { file: 'notepad.exe' } },
   { icon: 'code', color: 'indigo', a: 'launch', p: { file: 'https://github.com/jphacks/tkb_2618' } },
-  { icon: 'bolt', color: 'blue', a: 'launch', p: { file: 'calc.exe' } }
+  { icon: 'bolt', color: 'cyan', a: 'launch', p: { file: 'calc.exe' } }
 ];
 const colorOf = (id) => COLORS.find((c) => c[0] === id) || COLORS[4];
 const actOf = (id) => ACTS.find((a) => a[0] === id);
@@ -416,7 +416,7 @@ class Component extends DCLogic {
       pHotkey: a === 'hotkey', pLaunch: a === 'launch', pMedia: a === 'media', pCommand: a === 'command', pHttp: a === 'http', pProfile: a === 'profile',
       icLock: IC.lock,
       gridOpacity: locked ? '0.25' : '1',
-      lockBg: locked ? '#D62413' : 'transparent',
+      lockBg: locked ? '#D12052' : 'transparent',
       lockInk: locked ? '#FFFFFF' : '#BDBDBD',
       toggleLock: () => this.setState({ locked: !locked }),
       dragEnd: () => { this.drag = null; if (over !== null) this.setState({ over: null }); },

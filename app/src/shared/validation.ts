@@ -44,18 +44,28 @@ export function isCalibration(v: unknown): v is Calibration {
       && Number.isFinite(Math.hypot(...row)) && Math.hypot(...row) > 0)))
 }
 
+/** Key colors renamed when the palette moved to the slide colors (2026-10-26). */
+const RETIRED_COLORS: Record<string, string> = { green: 'orange', blue: 'cyan' }
+const recolor = (key: unknown): unknown => object(key) && typeof key.color === 'string' && Object.hasOwn(RETIRED_COLORS, key.color)
+  ? { ...key, color: RETIRED_COLORS[key.color] } : key
+
 /**
  * Version 1 had 16 keys (region × count × weak/strong) and a strongMin in the calibration. Version 2 drops strength:
- * each region keeps its weak key, or the strong one when the weak slot was empty. Anything else is returned as is.
+ * each region keeps its weak key, or the strong one when the weak slot was empty. Both versions also rename the
+ * retired palette IDs. Anything else, and a version 2 config with nothing to rename, is returned as is.
  */
 export function upgradeConfig(v: unknown): unknown {
-  if (!object(v) || v.version !== 1 || !Array.isArray(v.profiles)) return v
+  if (!object(v) || (v.version !== 1 && v.version !== 2) || !Array.isArray(v.profiles)) return v
+  if (v.version === 2) {
+    if (!v.profiles.some(p => object(p) && Array.isArray(p.keys) && p.keys.some(k => recolor(k) !== k))) return v
+    return { ...v, profiles: v.profiles.map(p => object(p) && Array.isArray(p.keys) ? { ...p, keys: p.keys.map(recolor) } : p) }
+  }
   const profiles = v.profiles.map(p => {
     const keys: unknown = object(p) ? p.keys : undefined
     if (!Array.isArray(keys) || keys.length !== 16) return p
     return { ...p, keys: Array.from({ length: KEY_COUNT }, (_, i) => {
       const old = Math.floor(i / 2) * 4 + (i % 2) * 2
-      return keys[old] ?? keys[old + 1] ?? null
+      return recolor(keys[old] ?? keys[old + 1] ?? null)
     }) }
   })
   const calibration = object(v.calibration) ? { calibration: Object.fromEntries(Object.entries(v.calibration).filter(([k]) => k !== 'strongMin')) } : {}
