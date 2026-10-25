@@ -361,7 +361,8 @@ within(0.0001, 1, metal.events[0].confidence);
     assert.ok(tied.detector.setCalibration(cal));
     tied.hit(10000, [500, 750, 0, 0]);
     tied.idleTo(330000);
-    within(0.0001, 0, tied.events[0].confidence);
+    // Confidence 0 is below MIN_CONFIDENCE, so the tap runs nothing.
+    assert.equal(0, tied.events.length);
 })
 
 test('test_ring_quiet_reset_cap_and_peak_capture', () => {
@@ -434,4 +435,15 @@ test('a cut-off first line does not become the baseline, and a DC jump recovers'
   assert.ok(fired > 0)
   for (let us = 8000250; us <= 10000000; us += 250) detector.sample([2048,2048,2548,2048], us)
   assert.equal(events.length, fired)
+})
+
+test('with templates, a tap unlike every region runs nothing', () => {
+  const cal = { ...defaultCalibration(), templates: [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]] }
+  const clear = new Rig(); clear.detector.setCalibration(cal)
+  clear.hit(10000, [600, 100, 0, 0]); clear.idleTo(400000)
+  assert.equal(clear.events.length, 1); assert.equal(clear.events[0].region, 0)
+  // Between top-left and top-right (leaning, or far from both sensors): confidence near 0.
+  const between = new Rig(); between.detector.setCalibration(cal)
+  between.hit(10000, [500, 480, 0, 0]); between.idleTo(400000)
+  assert.equal(between.events.length, 0)
 })

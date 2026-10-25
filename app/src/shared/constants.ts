@@ -258,75 +258,67 @@ export const DEFAULT_CONFIG: Config = {
       "name": "作業",
       "keys": [
         {
-          "icon": "mic",
-          "slash": true,
+          "icon": "music",
           "color": "red",
           "action": {
-            "type": "hotkey",
-            "keys": [
-              "Ctrl",
-              "Shift",
-              "KeyM"
-            ]
+            "type": "launch",
+            "file": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
           }
         },
         {
-          "icon": "capture",
+          "icon": "star",
+          "color": "yellow",
+          "action": {
+            "type": "launch",
+            "file": "https://jphacks.com/"
+          }
+        },
+        {
+          "icon": "app",
+          "color": "red",
+          "action": {
+            "type": "launch",
+            "file": "powerpnt.exe"
+          }
+        },
+        {
+          "icon": "app",
           "color": "blue",
           "action": {
-            "type": "hotkey",
-            "keys": [
-              "Win",
-              "Shift",
-              "KeyS"
-            ]
+            "type": "launch",
+            "file": "winword.exe"
           }
         },
         {
-          "icon": "playpause",
+          "icon": "app",
           "color": "green",
           "action": {
-            "type": "media",
-            "op": "playpause"
+            "type": "launch",
+            "file": "excel.exe"
           }
         },
         {
-          "icon": "next",
-          "color": "green",
+          "icon": "keyboard",
+          "color": "yellow",
           "action": {
-            "type": "media",
-            "op": "next"
+            "type": "launch",
+            "file": "notepad.exe"
           }
         },
         {
-          "icon": "terminal",
+          "icon": "code",
           "color": "indigo",
           "action": {
             "type": "launch",
-            "file": "wt.exe"
+            "file": "https://github.com/jphacks/tkb_2618"
           }
         },
         {
-          "icon": "hammer",
-          "color": "yellow",
+          "icon": "bolt",
+          "color": "blue",
           "action": {
-            "type": "command",
-            "cmd": "npm run build"
-          }
-        },
-        {
-          "icon": "broadcast",
-          "color": "red",
-          "action": {
-            "type": "profile",
-            "to": "stream"
-          }
-        },
-        {
-          "icon": "lock",
-          "color": "indigo",
-          "action": {
-            "type": "lock"
+            "type": "launch",
+            "file": "calc.exe"
           }
         }
       ]

@@ -244,14 +244,14 @@ const PROFILES = ['作業', '配信', 'ゲーム'];
 const REGIONS = ['左上', '右上', '左下', '右下'];
 const PATTERNS = ['1回', '2回'];
 const INITIAL = [
-  { icon: 'mic', slash: true, color: 'red', a: 'hotkey', p: { keys: ['Ctrl', 'Shift', 'M'] } },
-  { icon: 'capture', color: 'blue', a: 'hotkey', p: { keys: ['Win', 'Shift', 'S'] } },
-  { icon: 'playpause', color: 'green', a: 'media', p: { op: 'playpause' } },
-  { icon: 'next', color: 'green', a: 'media', p: { op: 'next' } },
-  { icon: 'terminal', color: 'indigo', a: 'launch', p: { file: 'wt.exe' } },
-  { icon: 'hammer', color: 'yellow', a: 'command', p: { cmd: 'npm run build' } },
-  { icon: 'broadcast', color: 'red', a: 'profile', p: { to: 1 } },
-  { icon: 'lock', color: 'indigo', a: 'lock', p: {} }
+  { icon: 'music', color: 'red', a: 'launch', p: { file: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' } },
+  { icon: 'star', color: 'yellow', a: 'launch', p: { file: 'https://jphacks.com/' } },
+  { icon: 'app', color: 'red', a: 'launch', p: { file: 'powerpnt.exe' } },
+  { icon: 'app', color: 'blue', a: 'launch', p: { file: 'winword.exe' } },
+  { icon: 'app', color: 'green', a: 'launch', p: { file: 'excel.exe' } },
+  { icon: 'keyboard', color: 'yellow', a: 'launch', p: { file: 'notepad.exe' } },
+  { icon: 'code', color: 'indigo', a: 'launch', p: { file: 'https://github.com/jphacks/tkb_2618' } },
+  { icon: 'bolt', color: 'blue', a: 'launch', p: { file: 'calc.exe' } }
 ];
 const colorOf = (id) => COLORS.find((c) => c[0] === id) || COLORS[4];
 const actOf = (id) => ACTS.find((a) => a[0] === id);

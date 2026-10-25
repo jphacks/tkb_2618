@@ -10,6 +10,11 @@ const f = Math.fround
 const WARMUP_SAMPLES = 8
 /** In run mode, a channel above its threshold this long is not a tap (taps ring and dip back): the DC jumped, so restart it there. */
 const STUCK_US = 2_000_000
+/**
+ * With templates, a tap this unlike every region is dropped instead of running some key: leaning on the desk and taps far
+ * from every sensor land here. In the real logs every wrong-region tap was below 0.3 and every correct one 0.5 or more.
+ */
+export const MIN_CONFIDENCE = 0.3
 
 /** Port of DeskApiCore/Detector. Time is sample time in microseconds, never wall time. */
 export class Detector {
@@ -79,6 +84,7 @@ export class Detector {
   private emitPending(): void {
     const event = this.pending!
     this.pending = undefined
+    if (this.cal.templates && event.confidence < MIN_CONFIDENCE) return
     this.emit(event)
   }
   private finishHit(nowUs: number): void {
