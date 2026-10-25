@@ -62,7 +62,7 @@ PC 側は Windows に常駐するアプリです。振動を拾う（Sense）、
 
 #### 3. 叩いたら、キー入力から Webhook まで動かせる
 
-ショートカットキーやアプリの起動だけでなく、コマンドや Webhook も割り当てられます。Webhook を使えば、Slack への投稿や照明の操作など、PC の外のサービスも机から動かせます。キーの割り当ては、設定画面で操作をキーにドラッグするだけです。
+ショートカットキーやアプリの起動だけでなく、コマンドや Webhook も割り当てられます。Webhook は叩いた場所・回数・時刻を JSON で POST するので、受け取る側を用意すれば、PC の外のものも机から動かせます。キーの割り当ては、設定画面で操作をキーにドラッグするだけです。
 
 ### 解決出来ること
 
@@ -98,7 +98,6 @@ PC 側は Windows に常駐するアプリです。振動を拾う（Sense）、
 * React 19、Tailwind CSS v4、@dnd-kit/core
 * serialport、koffi
 * Arduino（ESP32 のファーム）
-* Remotion（デモ動画）
 
 #### デバイス
 * Seeed Studio XIAO ESP32S3
@@ -121,7 +120,6 @@ PC 側は Windows に常駐するアプリです。振動を拾う（Sense）、
 | [`app/`](app/) | PC アプリ（Windows 常駐。Electron ＋ React） |
 | [`firmware/xiao-stream/`](firmware/xiao-stream/) | 本番のファーム（Arduino IDE で書き込む） |
 | [`tools/tap-collect/`](tools/tap-collect/) | 叩き方ごとの生の値を記録し、検出器を採点する CLI |
-| [`video/`](video/) | デモ動画（Remotion） |
 | [`docs/`](docs/) | 仕様・プロトコル・回路図・デザイン |
 
 実機がなくても、疑似入力で画面を動かせます。
