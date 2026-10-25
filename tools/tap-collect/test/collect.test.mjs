@@ -519,3 +519,84 @@ test('山は静止ピークの 3 倍を超えた波を数える、校正の対�
     [['lt', 'weak'], ['lt', 'medium'], ['rb', 'weak'], ['rb', 'medium']]);
   assert.ok(!subset.some(p => p.kind === 'cal_double'));
 });
+
+test('typing 記録中は入力を保存も操作もせず、終了後は操作が戻る', async t => {
+  const { EventEmitter } = await import('node:events');
+  const { Terminal } = await import('../collect.mjs');
+  const store = new Store(setup(t));
+  store.session.patterns = store.session.patterns.filter(p => p.kind === 'typing');
+  const input = new EventEmitter();
+  input.resume = input.pause = () => {};
+  let output = '';
+  const ui = new Terminal(input, { write(s) { output += s; } });
+  const timer = new FakeClock();
+  const source = new MockSource(store, timer);
+  const sleep = timer.sleep.bind(timer);
+  let beforeCue = 0;
+  let afterCue = 0;
+  timer.sleep = async ms => {
+    if (store.active) {
+      if (store.active.cue === null) beforeCue++;
+      else afterCue++;
+      // Several keys per poll must not leak into later trials.
+      for (const str of ['q', 'r', ' ', 'n', '秘密', '\r', '\u001b[A'])
+        input.emit('keypress', str, { name: str === '\r' ? 'return' : str });
+    }
+    await sleep(ms);
+  };
+  let results = 0;
+  ui.result = () => {
+    if (++results === 1) input.emit('keypress', 'r', { name: 'r' });
+  };
+  source.start();
+  try {
+    assert.equal(await run(store, { ui, source, clock: timer }), true);
+    assert.equal(ui.stopped, false);
+    assert.ok(beforeCue > 0 && afterCue > 0);
+    assert.deepEqual(store.records.map(r => r.status), ['redo', 'ok']);
+    assert.equal(ui.poll(), undefined);
+    assert.match(output, /キーボードを普通に打つ（このウィンドウで打って大丈夫）/);
+    store.flush();
+    const events = jsonl(path.join(store.dir, 'events.jsonl'));
+    assert.deepEqual(events.filter(e => e.type === 'key').map(e => e.key), ['r']);
+    assert.ok(!fs.readFileSync(path.join(store.dir, 'events.jsonl'), 'utf8').includes('秘密'));
+    for (const str of ['n', ' ', 'r']) input.emit('keypress', str, { name: str });
+    assert.deepEqual([ui.poll(), ui.poll(), ui.poll()], ['n', ' ', 'r']);
+    input.emit('keypress', 'q', { name: 'q' });
+    assert.equal(ui.stopped, true);
+  } finally {
+    source.stop();
+    ui.close();
+    store.close();
+  }
+});
+
+test('typing 記録中も Ctrl+C で中断して保存する', async t => {
+  const { EventEmitter } = await import('node:events');
+  const { Terminal } = await import('../collect.mjs');
+  const store = new Store(setup(t));
+  store.session.patterns = store.session.patterns.filter(p => p.kind === 'typing');
+  const input = new EventEmitter();
+  input.resume = input.pause = () => {};
+  const ui = new Terminal(input, { write() {} });
+  const timer = new FakeClock();
+  const source = new MockSource(store, timer);
+  const sleep = timer.sleep.bind(timer);
+  timer.sleep = async ms => {
+    await sleep(ms);
+    if (store.active?.cue != null) input.emit('keypress', '\u0003', { name: 'c', ctrl: true });
+  };
+  source.start();
+  try {
+    assert.equal(await run(store, { ui, source, clock: timer }), false);
+    assert.equal(ui.stopped, true);
+    assert.deepEqual(store.records.map(r => r.status), ['aborted']);
+    store.flush();
+    assert.equal(jsonl(path.join(store.dir, 'events.jsonl')).filter(e => e.type === 'key').length, 0);
+    assert.equal(store.remaining().length, 1);
+  } finally {
+    source.stop();
+    ui.close();
+    store.close();
+  }
+});

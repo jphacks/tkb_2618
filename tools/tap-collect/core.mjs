@@ -159,7 +159,7 @@ raw.csv はセッション全体の生値。列は i,d0,d1,d3,d4。i は 0 始�
 
 session.json に版、時刻、ポート、mock、起動行、rate、全オプション、seed、机・センサーのメモ、git コミット、試行順、ch の並びを保存する。mock: true は合成データ。
 
-events.jsonl は各行が JSON。i は次のサンプル番号、t は ISO 時刻。line は [ で始まるファームの行を全文保存。bad_line は不正行。start / cue / end は試行の開始・合図・終了、key は入力、resume は再開。disconnect / connect は接続状態。
+events.jsonl は各行が JSON。i は次のサンプル番号、t は ISO 時刻。line は [ で始まるファームの行を全文保存。bad_line は不正行。start / cue / end は試行の開始・合図・終了、key は操作入力（typing の記録中は Ctrl+C 以外を無視し、キーを保存しない）、resume は再開。disconnect / connect は接続状態。
 
 trials.jsonl は各行が試行の結果。同じ n の行が複数あれば最後を採用する（後からの redo・メモの追記）。n は記録の連番、id は session.json の patterns の試行 ID。セッションは phase: "calibration"（静止 → cal_single → cal_double の固定順）と phase: "use"（使用試行）の 2 部構成。cal_single は count: 1、cal_double は count: 2、cal_single は sets: 3 と zone / strength、cal_double は sets: 2 と zone、strength: null を持つ。kind は calibration / cal_single / cal_double / tap / rest / typing / place / lean。tap の zone は lt / rt / lb / rb、count は回数、strength は weak / medium / strong。静止・叩き以外は zone / count / strength が null。rep は繰り返し番号。status は ok（採用）/ redo（不採用）/ aborted（中断）。note は自由メモ、t は開始の ISO 時刻。
 
@@ -459,6 +459,10 @@ export class MockSource {
 export const clock = {
   sleep: ms => new Promise(resolve => setTimeout(resolve, ms))
 };
+// Add future keyboard/mouse trials here to share the input policy.
+export function ignoresRecordingKeys(p) {
+  return p?.kind === 'typing';
+}
 export function instruction(p) {
   if (p.sets) {
     const zone = { lt: '左上', rt: '右上', lb: '左下', rb: '右下' }[p.zone];
@@ -477,7 +481,7 @@ export function instruction(p) {
   }[p.strength]}` : {
     calibration: '机に触れず静止する',
     rest: '何もしない',
-    typing: 'キーボードを普通に打つ',
+    typing: 'キーボードを普通に打つ（このウィンドウで打って大丈夫）',
     place: '机に物（スマホ・コップ）を置く',
     lean: '机に腕・肘をつく'
   }[p.kind];
@@ -495,7 +499,7 @@ export async function run(store, {
   let last = null;
   const handle = async () => {
     const key = ui.poll?.();
-    if (!key) return;
+    if (!key || ignoresRecordingKeys(store.active)) return;
     store.event('key', { key });
     if (key === 'q') ui.stopped = true;
     if (key === 'r') {
@@ -560,6 +564,7 @@ export async function run(store, {
     ui.say(`次: ${instruction(p)}`);
     let ok = await wait(500);
     if (ok) {
+      ui.setRecording?.(p);
       store.start(p);
       ok = await wait(1000);
     }
@@ -569,6 +574,7 @@ export async function run(store, {
       ui.say(['tap', 'cal_single', 'cal_double'].includes(p.kind) ? '叩いて' : instruction(p));
       ok = await wait(p.seconds * 1000);
     }
+    ui.setRecording?.(null);
     if (!ok) {
       if (store.active) store.finish('aborted');
       retry ??= p;

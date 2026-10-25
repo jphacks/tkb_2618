@@ -10,6 +10,7 @@ import {
   channels,
   clock,
   instruction,
+  ignoresRecordingKeys,
 } from './core.mjs';
 
 export class Terminal {
@@ -28,6 +29,7 @@ export class Terminal {
         this.stop();
         return;
       }
+      if (this.ignoreKeys) return;
       if (this.editing) {
         if (key.name === 'return') {
           const text = this.text;
@@ -115,6 +117,9 @@ export class Terminal {
       `\r\x1b[K${label}  ${'▮'.repeat(filled)}${'▯'.repeat(20 - filled)}  ${elapsed.toFixed(1)} / ${a.seconds} 秒`,
     );
     this.lineVisible = true;
+  }
+  setRecording(pattern) {
+    this.ignoreKeys = ignoresRecordingKeys(pattern);
   }
   poll() {
     return this.keys.shift();
