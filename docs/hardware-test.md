@@ -208,3 +208,31 @@ npm run dist
 - `npm run dev` を実行したターミナルの出力（エラーが出ていればその前後）
 - 3 章の `serial-log-*.txt`（どのテーブルで取ったか）
 - 必要ならスクリーンショット、`config.json`
+
+## 叩き方をラベル付きで記録する（tap-collect）
+
+1 セッション約 5 分。アプリと同じ「キャリブレーション → 使用」の 2 部で、指示どおりに叩くと自動で進む。詳しい操作は `tools/tap-collect/README.md`。
+
+1. wave-checker（`start-waveform-app.cmd`）で 4 センサーが反応するか見て、**閉じる**。アプリ・Arduino IDE のシリアルモニタも閉じる（COM ポートは 1 つのアプリしか開けない）
+2. Windows で `npm ci` し直す（WSL の `node_modules` はコピーしない）
+
+```powershell
+cd tools/tap-collect
+npm ci
+node collect.mjs --list
+node collect.mjs --port COM5
+```
+
+- 「次: …」が出たら手を構え、「叩いて」で叩く。合図前の 1 秒は机に触れない
+- 叩き間違えたら `r`（直前を撮り直し）、休むときは Space、終わるときは `q`（`--resume <フォルダ>` で続きから）
+- 区間ごとに出る「山」の数が叩いた回数と違ったら `r`
+- 同じ机で何度か撮る。センサーを貼り直したら、そのあとにも 1 回撮る
+- `tap-logs/` のフォルダごと PM に渡す（Git には入らない。1 セッション約 30 MB）
+
+採点（app の採点には `app/` でも `npm ci` が要る）:
+
+```powershell
+node score.mjs --detector app --session tap-logs/A tap-logs/B
+node score.mjs --detector app --calibrate tap-logs/A --test tap-logs/B   # 貼り直しの前後
+node score.mjs --detector takker --takker <mockui/sensor-runtime のフォルダ> --channels D0,D4 --session tap-logs/A
+```

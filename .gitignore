@@ -9,3 +9,4 @@ release/
 # 個人の資料置き場（領収書などを含むのでコミットしない）
 .orca/
 serial-log-*.txt
+tap-logs/
