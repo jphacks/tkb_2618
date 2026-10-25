@@ -6,6 +6,8 @@
 
 [![DaaS のデモ動画](docs/images/readme-hero.png)](https://youtu.be/Rw6g0IRwGyE)
 
+デモ動画：https://youtu.be/Rw6g0IRwGyE
+
 ## 製品概要
 
 ### 背景（製品開発のきっかけ、課題等）
