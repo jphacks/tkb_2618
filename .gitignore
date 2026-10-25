@@ -1,0 +1,16 @@
+node_modules/
+out/
+dist/
+release/
+.pio/
+*.log
+*.tsbuildinfo
+
+# 個人の資料置き場（領収書などを含むのでコミットしない）
+.orca/
+serial-log-*.txt
+tap-logs/
+tools/tap-collect/scores/
+
+# 依存は npm（package-lock.json）で入れる。pnpm で入れたときのロックファイルはコミットしない
+pnpm-lock.yaml

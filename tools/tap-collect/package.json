@@ -1,0 +1,15 @@
+{
+  "name": "tap-collect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "叩き方ごとの生値を集める CLI",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node collect.mjs --quick",
+    "test": "node --test --test-isolation=none"
+  },
+  "dependencies": {
+    "serialport": "^13.0.0"
+  }
+}

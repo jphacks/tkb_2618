@@ -270,6 +270,23 @@ PC操作・API呼び出し
 
 ---
 
+## 開発
+
+| ディレクトリ | 中身 |
+|---|---|
+| [`app/`](app/) | PC アプリ（Windows 常駐。Electron + React）。生値から叩いた領域と回数を判定し、割り当てた操作を実行する |
+| [`firmware/xiao-stream/`](firmware/xiao-stream/) | 本番のファーム。4 ch の生値を USB シリアルで送る（Arduino IDE で書き込む） |
+| [`tools/tap-collect/`](tools/tap-collect/) | 叩き方ごとの生値を記録し、検出器を採点する CLI |
+| [`docs/`](docs/) | 仕様・プロトコル・回路図・デザイン・実装タスク |
+
+```powershell
+cd app
+npm ci
+$env:DESKAPI_MOCK = 1; npm run dev   # 実機なしで起動
+```
+
+開発環境の準備は [`docs/setup.md`](docs/setup.md)、実機での確認は [`docs/hardware-test.md`](docs/hardware-test.md)、AI エージェント向けのガイドは [`AGENTS.md`](AGENTS.md)。
+
 ## チーム
 
 **Good To ME**

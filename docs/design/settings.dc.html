@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案B 机マップ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#121212}
+a{color:#8FB3FF}a:hover{color:#B5CCFF}
+.dk-key{transition:transform .12s ease, filter .12s ease}
+.dk-key:hover{filter:brightness(1.12)}
+.dk-key:active{transform:scale(.96)}
+.dk-tile{transition:background-color .12s ease}
+.dk-tile:hover{filter:brightness(1.18)}
+.dk-ghost:hover{background:#222 !important}
+@keyframes dk-ripple{from{transform:scale(1);opacity:.95}to{transform:scale(1.35);opacity:0}}
+@keyframes dk-bump{0%{transform:scale(1)}35%{transform:scale(.9)}100%{transform:scale(1)}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 860px; box-sizing: border-box; background: #121212; color: #EDEDED; font-family: 'Noto Sans JP', system-ui, sans-serif; display: flex; flex-wrap: wrap">
+
+  <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; padding: 20px 40px 40px; box-sizing: border-box">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+      <nav aria-label="プロファイル" style="display: flex; align-items: center; gap: 4px">
+        <sc-for list="{{profiles}}" as="p" hint-placeholder-count="3">
+          <button class="dk-ghost" onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: {{p.bg}}; color: {{p.fg}}; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">{{p.name}}</button>
+        </sc-for>
+        <button class="dk-ghost" aria-label="プロファイルを追加" title="プロファイルを追加" style="width: 36px; height: 36px; border: 0; border-radius: 18px; background: transparent; color: #8A8A8A; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="currentColor"></path></svg></button>
+      </nav>
+      <div style="flex-grow: 1"></div>
+      <span title="接続中 · COM3" role="img" aria-label="接続中" style="width: 8px; height: 8px; border-radius: 50%; background: #13D66A; margin-right: 10px"></span>
+      <button class="dk-ghost" onClick="{{toggleLock}}" aria-pressed="{{locked}}" aria-label="入力ロック" title="入力ロック" style="width: 40px; height: 40px; border-radius: 20px; border: 0; background: {{lockBg}}; cursor: pointer; display: flex; align-items: center; justify-content: center">
+        <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d="{{icLock}}" fill="{{lockInk}}" fill-rule="evenodd"></path></svg>
+      </button>
+      <a href="Calibrate.dc.html" class="dk-ghost" aria-label="キャリブレーション" title="キャリブレーション" style="width: 40px; height: 40px; border-radius: 20px; background: transparent; display: flex; align-items: center; justify-content: center; text-decoration: none">
+        <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20z M12 4.2a7.8 7.8 0 1 1 0 15.6a7.8 7.8 0 1 1 0-15.6z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z" fill="#BDBDBD" fill-rule="evenodd"></path></svg>
+      </a>
+      <button class="dk-ghost" aria-label="設定" title="設定" style="width: 40px; height: 40px; border-radius: 20px; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center">
+        <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.7 1.6.7 2.3-1.6 2.4 2.4-1.6 2.3.7 1.6 2.7.5v3.4l-2.7.5-.7 1.6 1.6 2.3-2.4 2.4-2.3-1.6-1.6.7-.5 2.7h-3.4l-.5-2.7-1.6-.7-2.3 1.6-2.4-2.4 1.6-2.3-.7-1.6L2 13.7v-3.4l2.7-.5.7-1.6-1.6-2.3 2.4-2.4 2.3 1.6 1.6-.7z M12 8.6a3.4 3.4 0 1 0 0 6.8a3.4 3.4 0 1 0 0-6.8z" fill="#BDBDBD" fill-rule="evenodd"></path></svg>
+      </button>
+    </div>
+
+    <section aria-label="机" style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 32px 0 0; overflow-x: auto">
+      <div style="display: grid; grid-template-columns: 96px 96px 40px 96px 96px; grid-template-rows: 20px 96px 40px 96px; gap: 12px; opacity: {{gridOpacity}}">
+        <sc-for list="{{cells}}" as="c" hint-placeholder-count="24">
+          <sc-if value="{{c.isHead}}" hint-placeholder-val="{{ false }}">
+            <span role="img" aria-label="{{c.aria}}" style="grid-column: {{c.col}}; grid-row: {{c.row}}; display: flex; flex-direction: {{c.dir}}; align-items: center; justify-content: center; gap: 4px">
+              <sc-for list="{{c.dots}}" as="d" hint-placeholder-count="1"><span style="width: {{d.sz}}px; height: {{d.sz}}px; border-radius: 50%; background: #5A5A5A"></span></sc-for>
+            </span>
+          </sc-if>
+          <sc-if value="{{c.isKey}}" hint-placeholder-val="{{ true }}">
+            <button class="dk-key" draggable="{{c.draggable}}" onDragStart="{{c.dragStart}}" onDragOver="{{c.dragOver}}" onDragLeave="{{c.dragLeave}}" onDrop="{{c.drop}}" onDragEnd="{{dragEnd}}" onClick="{{c.pick}}" aria-label="{{c.aria}}" aria-pressed="{{c.selected}}" style="grid-column: {{c.col}}; grid-row: {{c.row}}; width: 96px; height: 96px; box-sizing: border-box; padding: 0; border-radius: 24px; border: {{c.border}}; background: {{c.bg}}; box-shadow: {{c.ring}}; outline: {{c.outline}}; outline-offset: 4px; position: relative; animation: {{c.anim}}; display: flex; align-items: center; justify-content: center; cursor: pointer">
+              <sc-if value="{{c.fire}}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: -3px; top: -3px; right: -3px; bottom: -3px; border-radius: 27px; border: 3px solid {{c.rippleColor}}; animation: dk-ripple .6s ease-out forwards; pointer-events: none"></span>
+              </sc-if>
+              <sc-if value="{{c.bracket}}" hint-placeholder-val="{{ true }}">
+                <span style="position: absolute; left: 9px; top: 9px; width: 24px; height: 24px; box-sizing: border-box; border-top: 2px solid {{c.fg}}; border-left: 2px solid {{c.fg}}; border-top-left-radius: 14px; opacity: 0.6; pointer-events: none"></span>
+                <span style="position: absolute; right: 9px; bottom: 9px; width: 24px; height: 24px; box-sizing: border-box; border-bottom: 2px solid {{c.fg}}; border-right: 2px solid {{c.fg}}; border-bottom-right-radius: 14px; opacity: 0.6; pointer-events: none"></span>
+              </sc-if>
+              <svg width="{{c.size}}" height="{{c.size}}" viewBox="0 0 24 24" aria-hidden="true" style="pointer-events: none">
+                <path d="{{c.d}}" fill="{{c.fg}}" fill-rule="evenodd"></path>
+                <sc-if value="{{c.slash}}" hint-placeholder-val="{{ false }}">
+                  <line x1="3.5" y1="3.5" x2="20.5" y2="20.5" stroke="{{c.bg}}" stroke-width="4.6" stroke-linecap="round"></line>
+                  <line x1="3.5" y1="3.5" x2="20.5" y2="20.5" stroke="{{c.fg}}" stroke-width="2" stroke-linecap="round"></line>
+                </sc-if>
+              </svg>
+            </button>
+          </sc-if>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+
+  <aside aria-label="キーの設定" style="flex: 1 1 340px; min-width: 0; max-width: 100%; background: #1A1A1A; box-sizing: border-box; padding: 28px 24px 32px; display: flex; flex-direction: column; gap: 24px">
+
+    <div style="display: flex; align-items: center; gap: 20px">
+      <div style="position: relative; width: 104px; height: 104px; flex-shrink: 0; box-sizing: border-box; border-radius: 26px; border: {{sel.border}}; background: {{sel.bg}}; display: flex; align-items: center; justify-content: center">
+        <sc-if value="{{sel.filled}}" hint-placeholder-val="{{ true }}">
+          <span style="position: absolute; left: 10px; top: 10px; width: 26px; height: 26px; box-sizing: border-box; border-top: 2px solid {{sel.fg}}; border-left: 2px solid {{sel.fg}}; border-top-left-radius: 15px; opacity: 0.6"></span>
+          <span style="position: absolute; right: 10px; bottom: 10px; width: 26px; height: 26px; box-sizing: border-box; border-bottom: 2px solid {{sel.fg}}; border-right: 2px solid {{sel.fg}}; border-bottom-right-radius: 15px; opacity: 0.6"></span>
+        </sc-if>
+        <svg width="{{sel.size}}" height="{{sel.size}}" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="{{sel.d}}" fill="{{sel.fg}}" fill-rule="evenodd"></path>
+          <sc-if value="{{sel.slash}}" hint-placeholder-val="{{ false }}">
+            <line x1="3.5" y1="3.5" x2="20.5" y2="20.5" stroke="{{sel.bg}}" stroke-width="4.6" stroke-linecap="round"></line>
+            <line x1="3.5" y1="3.5" x2="20.5" y2="20.5" stroke="{{sel.fg}}" stroke-width="2" stroke-linecap="round"></line>
+          </sc-if>
+        </svg>
+      </div>
+      <div role="img" aria-label="{{sel.trigger}}" title="{{sel.trigger}}" style="display: flex; flex-direction: column; gap: 12px">
+        <span style="display: grid; grid-template-columns: repeat(2, 14px); gap: 3px"><span style="width: 14px; height: 14px; border-radius: 4px; background: {{sel.m0}}"></span><span style="width: 14px; height: 14px; border-radius: 4px; background: {{sel.m1}}"></span><span style="width: 14px; height: 14px; border-radius: 4px; background: {{sel.m2}}"></span><span style="width: 14px; height: 14px; border-radius: 4px; background: {{sel.m3}}"></span></span>
+        <span style="display: flex; align-items: center; gap: 4px; height: 12px">
+          <sc-for list="{{sel.dots}}" as="dt" hint-placeholder-count="1"><span style="width: {{dt.sz}}px; height: {{dt.sz}}px; border-radius: 50%; background: #EDEDED"></span></sc-for>
+        </span>
+      </div>
+    </div>
+
+    <div role="radiogroup" aria-label="アクション" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+      <sc-for list="{{acts}}" as="a" hint-placeholder-count="7">
+        <button class="dk-tile" role="radio" aria-checked="{{a.on}}" draggable="true" onDragStart="{{a.dragStart}}" onDragEnd="{{dragEnd}}" onClick="{{a.pick}}" style="height: 64px; border: 0; border-radius: 14px; background: {{a.bg}}; color: {{a.fg}}; cursor: grab; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0 4px; font: inherit">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="pointer-events: none"><path d="{{a.d}}" fill="currentColor" fill-rule="evenodd"></path></svg>
+          <span style="font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; pointer-events: none">{{a.name}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{sel.filled}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; gap: 24px">
+
+        <sc-if value="{{pHotkey}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px">
+            <sc-for list="{{caps}}" as="cp" hint-placeholder-count="3">
+              <span title="{{cp.k}}" style="min-width: 44px; height: 44px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; background: #262626; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #EDEDED">
+                <sc-if value="{{cp.isIcon}}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" role="img" aria-label="{{cp.k}}"><path d="{{cp.d}}" fill="#EDEDED" fill-rule="evenodd"></path></svg></sc-if>
+                <sc-if value="{{cp.isText}}" hint-placeholder-val="{{ true }}">{{cp.k}}</sc-if>
+              </span>
+            </sc-for>
+            <div style="flex-grow: 1"></div>
+            <button class="dk-ghost" aria-label="キーを記録" title="キーを記録" style="width: 44px; height: 44px; border-radius: 22px; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><span style="width: 14px; height: 14px; border-radius: 50%; background: #D62413"></span></button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{pLaunch}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 6px 0 16px; border-radius: 14px; background: #262626">
+            <span style="flex-grow: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{sel.file}}</span>
+            <button class="dk-ghost" aria-label="ファイルを選ぶ" title="ファイルを選ぶ" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5a1 1 0 0 1 1-1h6l2 2.5h10a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" fill="#BDBDBD"></path></svg></button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{pMedia}}" hint-placeholder-val="{{ false }}">
+          <div role="radiogroup" aria-label="操作" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px">
+            <sc-for list="{{mediaOps}}" as="mo" hint-placeholder-count="6">
+              <button class="dk-tile" role="radio" aria-checked="{{mo.on}}" onClick="{{mo.pick}}" aria-label="{{mo.name}}" title="{{mo.name}}" style="aspect-ratio: 1; border: 0; border-radius: 14px; background: {{mo.bg}}; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0">
+                <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="{{mo.d}}" fill="{{mo.fg}}" fill-rule="evenodd"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{pCommand}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; height: 52px; padding: 0 16px; border-radius: 14px; background: #262626; font-family: 'JetBrains Mono', monospace; font-size: 14px"><span style="color: #8A8A8A; margin-right: 10px">&gt;</span>{{sel.cmd}}</div>
+        </sc-if>
+
+        <sc-if value="{{pHttp}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 16px 0 8px; border-radius: 14px; background: #262626; font-family: 'JetBrains Mono', monospace; font-size: 13px">
+            <span style="height: 34px; padding: 0 10px; border-radius: 9px; background: {{sel.bg}}; color: {{sel.fg}}; display: flex; align-items: center">POST</span>
+            <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #BDBDBD">{{sel.url}}</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{pProfile}}" hint-placeholder-val="{{ false }}">
+          <div role="radiogroup" aria-label="切り替え先" style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{profTargets}}" as="pt" hint-placeholder-count="3">
+              <button class="dk-tile" role="radio" aria-checked="{{pt.on}}" onClick="{{pt.pick}}" style="height: 44px; padding: 0 18px; border: 0; border-radius: 22px; background: {{pt.bg}}; color: {{pt.fg}}; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">{{pt.name}}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <div style="height: 1px; background: #262626"></div>
+
+        <div role="radiogroup" aria-label="色" style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px">
+          <sc-for list="{{swatches}}" as="sw" hint-placeholder-count="9">
+            <button role="radio" aria-checked="{{sw.on}}" onClick="{{sw.pick}}" aria-label="{{sw.name}}" style="width: 28px; height: 28px; border-radius: 50%; border: 0; padding: 0; background: {{sw.bg}}; box-shadow: {{sw.ring}}; cursor: pointer"></button>
+          </sc-for>
+        </div>
+
+        <div role="radiogroup" aria-label="アイコン" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px">
+          <sc-for list="{{icons}}" as="ic" hint-placeholder-count="18">
+            <button class="dk-tile" role="radio" aria-checked="{{ic.on}}" onClick="{{ic.pick}}" aria-label="{{ic.name}}" style="aspect-ratio: 1; border: 0; border-radius: 12px; background: {{ic.bg}}; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0">
+              <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ic.d}}" fill="{{ic.fg}}" fill-rule="evenodd"></path></svg>
+            </button>
+          </sc-for>
+          <button class="dk-ghost" aria-label="画像を選ぶ" title="画像を選ぶ" style="aspect-ratio: 1; box-sizing: border-box; border: 2px dashed #333; border-radius: 12px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0">
+            <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z M5 17h14l-4.5-6-3.5 4.5-2.5-3z M8 6.5a1.8 1.8 0 1 0 0 3.6a1.8 1.8 0 1 0 0-3.6z" fill="#8A8A8A" fill-rule="evenodd"></path></svg>
+          </button>
+        </div>
+
+        <div style="display: flex; gap: 8px">
+          <button aria-label="テスト実行" title="テスト実行" style="flex: 1 1 auto; height: 52px; border: 0; border-radius: 26px; background: #EDEDED; cursor: pointer; display: flex; align-items: center; justify-content: center">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l15 8-15 8z" fill="#121212"></path></svg>
+          </button>
+          <button class="dk-tile" onClick="{{clear}}" aria-label="割り当てを外す" title="割り当てを外す" style="width: 52px; height: 52px; border: 0; border-radius: 26px; background: #262626; cursor: pointer; display: flex; align-items: center; justify-content: center">
+            <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2h6v2h5v2H4V4h5z M5.5 8h13l-1 13a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z" fill="#BDBDBD"></path></svg>
+          </button>
+        </div>
+      </div>
+    </sc-if>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+const IC = {
+  mic: 'M12 2a3.5 3.5 0 0 0-3.5 3.5v6a3.5 3.5 0 0 0 7 0v-6A3.5 3.5 0 0 0 12 2z M5.5 10.5h1.6v1a4.9 4.9 0 0 0 9.8 0v-1h1.6v1a6.5 6.5 0 0 1-5.7 6.45v2.55h3v1.6H8.2v-1.6h3v-2.55A6.5 6.5 0 0 1 5.5 11.5z',
+  capture: 'M3 3h6v2.2H5.2V9H3z M15 3h6v6h-2.2V5.2H15z M3 15h2.2v3.8H9V21H3z M18.8 15H21v6h-6v-2.2h3.8z M11 7h2v4h4v2h-4v4h-2v-4H7v-2h4z',
+  code: 'M8.3 5.5l1.6 1.6L5 12l4.9 4.9-1.6 1.6L1.8 12z M15.7 5.5L22.2 12l-6.5 6.5-1.6-1.6L19 12l-4.9-4.9z M13.2 4l1.9.5-4.3 15.5-1.9-.5z',
+  app: 'M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M4 9v9h16V9z',
+  playpause: 'M3 5.5v13l9-6.5z M15 5.5h2.5v13H15z M19.5 5.5H22v13h-2.5z',
+  next: 'M3 5.5v13l8.5-6.5z M11.5 5.5v13l8.5-6.5z M20 5.5h2v13h-2z',
+  prev: 'M21 5.5v13l-8.5-6.5z M12.5 5.5v13L4 12z M2 5.5h2v13H2z',
+  volume: 'M3 9h4l5-4v14l-5-4H3z M15 8.2a5 5 0 0 1 0 7.6l-1.2-1.2a3.4 3.4 0 0 0 0-5.2z M17.8 5.4a9 9 0 0 1 0 13.2l-1.2-1.2a7.3 7.3 0 0 0 0-10.8z',
+  volDown: 'M2 9h4l5-4v14l-5-4H2z M14 11h8v2h-8z',
+  volUp: 'M2 9h4l5-4v14l-5-4H2z M17 7.5h2v3.5h3.5v2H19v3.5h-2V13h-3.5v-2H17z',
+  music: 'M9 6.5l11-2.5v11.2a2.8 2.8 0 1 1-2-2.7V6.6l-7 1.6v9a2.8 2.8 0 1 1-2-2.7z',
+  terminal: 'M3 6.3l1.8-1.8L12 11.7l-7.2 7.2L3 17.1l5.4-5.4z M13 17h8v2.4h-8z',
+  hammer: 'M4 4h11l3 3-3 3H4z M8.5 10h3v11h-3z',
+  bubble: 'M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M6.5 8h11v1.8h-11z M6.5 11.6h7v1.8h-7z',
+  lock: 'M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10h-2V7.5a2.5 2.5 0 0 0-5 0V10z M5 10h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z M12 13.2a1.6 1.6 0 0 0-.8 3V18h1.6v-1.8a1.6 1.6 0 0 0-.8-3z',
+  keyboard: 'M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z M5 9h2v2H5z M8.5 9h2v2h-2z M12 9h2v2h-2z M15.5 9h2v2h-2z M7 13.5h10v2H7z',
+  send: 'M3 11.2L21 3l-8.2 18-2.3-7.5z',
+  layers: 'M12 2l10 5-10 5L2 7z M2 12l2.2-1.1L12 15l7.8-4.1L22 12l-10 5z M2 17l2.2-1.1L12 20l7.8-4.1L22 17l-10 5z',
+  broadcast: 'M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M16.2 7.8a6 6 0 0 1 0 8.4l-1.4-1.4a4 4 0 0 0 0-5.6z M19 5a10 10 0 0 1 0 14l-1.4-1.4a8 8 0 0 0 0-11.2z M7.8 7.8l1.4 1.4a4 4 0 0 0 0 5.6l-1.4 1.4a6 6 0 0 1 0-8.4z M5 5l1.4 1.4a8 8 0 0 0 0 11.2L5 19a10 10 0 0 1 0-14z',
+  star: 'M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z',
+  bolt: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  plus: 'M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z',
+  shift: 'M12 3l9 9h-5v8H8v-8H3z',
+  win: 'M3 3h8.2v8.2H3z M12.8 3H21v8.2h-8.2z M3 12.8h8.2V21H3z M12.8 12.8H21V21h-8.2z'
+};
+const ICON_LIST = [
+  ['mic', 'マイク'], ['capture', 'キャプチャ'], ['code', 'コード'], ['app', 'ウィンドウ'], ['playpause', '再生'], ['next', '次'],
+  ['volume', '音量'], ['music', '音楽'], ['terminal', 'ターミナル'], ['hammer', 'ビルド'], ['bubble', 'メッセージ'], ['lock', 'ロック'],
+  ['keyboard', 'キーボード'], ['send', '送信'], ['layers', 'レイヤー'], ['broadcast', '配信'], ['star', 'スター'], ['bolt', '稲妻']
+];
+// テーマ: Adobe Color「マイ Color テーマ」。明るい緑と黄はアイコンを黒にする
+const COLORS = [
+  ['red', '#D62413', '#FFFFFF', '赤'], ['yellow', '#D6B813', '#121212', '黄'], ['green', '#13D66A', '#121212', '緑'],
+  ['blue', '#2214D6', '#FFFFFF', '青'], ['indigo', '#3C3781', '#FFFFFF', '紺']
+];
+const ACTS = [
+  ['hotkey', 'キー入力', 'keyboard', 'blue', { keys: ['Ctrl', 'C'] }],
+  ['launch', 'アプリ', 'app', 'indigo', { file: 'notepad.exe' }],
+  ['media', 'メディア', 'playpause', 'green', { op: 'playpause' }],
+  ['command', 'コマンド', 'terminal', 'yellow', { cmd: 'echo hello' }],
+  ['http', 'Webhook', 'send', 'blue', { url: 'https://[YOUR WEBHOOK URL]' }],
+  ['profile', 'プロファイル', 'layers', 'red', { to: 1 }],
+  ['lock', 'ロック', 'lock', 'indigo', {}]
+];
+const MEDIA_OPS = [['prev', '前の曲'], ['playpause', '再生 / 停止'], ['next', '次の曲'], ['volDown', '音量 −'], ['volUp', '音量 +'], ['mic', 'ミュート']];
+const PROFILES = ['作業', '配信', 'ゲーム'];
+const REGIONS = ['左上', '右上', '左下', '右下'];
+const PATTERNS = ['1回', '2回'];
+const INITIAL = [
+  { icon: 'music', color: 'red', a: 'launch', p: { file: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' } },
+  { icon: 'star', color: 'yellow', a: 'launch', p: { file: 'https://jphacks.com/' } },
+  { icon: 'app', color: 'red', a: 'launch', p: { file: 'powerpnt.exe' } },
+  { icon: 'app', color: 'blue', a: 'launch', p: { file: 'winword.exe' } },
+  { icon: 'app', color: 'green', a: 'launch', p: { file: 'excel.exe' } },
+  { icon: 'keyboard', color: 'yellow', a: 'launch', p: { file: 'notepad.exe' } },
+  { icon: 'code', color: 'indigo', a: 'launch', p: { file: 'https://github.com/jphacks/tkb_2618' } },
+  { icon: 'bolt', color: 'blue', a: 'launch', p: { file: 'calc.exe' } }
+];
+const colorOf = (id) => COLORS.find((c) => c[0] === id) || COLORS[4];
+const actOf = (id) => ACTS.find((a) => a[0] === id);
+const fresh = (id) => {
+  const [, , icon, color, p] = actOf(id);
+  return { icon, color, a: id, p: { ...p } };
+};
+const BG = '#121212';
+
+class Component extends DCLogic {
+  // モック用: 実機の代わりに数秒ごとにランダムなキーを「叩かれた」扱いにする
+  componentDidMount() {
+    this.demo = setInterval(() => {
+      if (this.state.locked) return;
+      const keys = this.state.keys || INITIAL;
+      const filled = keys.map((k, i) => (k ? i : -1)).filter((i) => i >= 0);
+      const idx = filled[Math.floor(Math.random() * filled.length)];
+      this.setState({ fire: idx });
+      clearTimeout(this.fireOff);
+      this.fireOff = setTimeout(() => this.setState({ fire: null }), 650);
+    }, 3200);
+  }
+  componentWillUnmount() { clearInterval(this.demo); clearTimeout(this.fireOff); }
+  renderVals() {
+    const s = this.state;
+    const keys = s.keys || INITIAL;
+    const fire = s.fire ?? null;
+    const sel = s.sel ?? 2;
+    const prof = s.prof ?? 0;
+    const locked = !!s.locked;
+    const over = s.over ?? null;
+    const commit = (next, extra) => this.setState({ keys: next, ...extra });
+    const setKey = (patch) => {
+      const next = keys.slice();
+      next[sel] = patch === null ? null : { ...keys[sel], ...patch };
+      commit(next);
+    };
+
+    const look = (k) => {
+      if (!k) return { bg: 'transparent', fg: '#3A3A3A', d: IC.plus, slash: false, border: '2px dashed #2E2E2E', size: 22 };
+      const c = colorOf(k.color);
+      return { bg: c[1], fg: c[2], d: IC[k.icon], slash: !!k.slash, border: '0', size: 44 };
+    };
+
+    const dropOn = (idx) => (e) => {
+      e.preventDefault();
+      const drag = this.drag;
+      this.drag = null;
+      if (!drag) return this.setState({ over: null });
+      const next = keys.slice();
+      if (drag.type === 'key') {
+        if (drag.idx === idx) return this.setState({ over: null });
+        next[idx] = keys[drag.idx];
+        next[drag.idx] = keys[idx];
+      } else {
+        next[idx] = fresh(drag.id);
+      }
+      commit(next, { over: null, sel: idx });
+    };
+
+    // 領域ごとに横 2 キー。上: 回数（点の数）
+    const cells = [];
+    [1, 2, 4, 5].forEach((col, i) => cells.push({
+      isHead: true, isKey: false, col: String(col), row: '1', dir: 'row',
+      aria: PATTERNS[i % 2], dots: Array.from({ length: i % 2 + 1 }, () => ({ sz: 7 }))
+    }));
+    keys.forEach((k, idx) => {
+      const r = Math.floor(idx / 2);
+      const p = idx % 2;
+      const selected = idx === sel;
+      cells.push({
+        isHead: false, isKey: true,
+        col: String((r % 2 === 0 ? 1 : 4) + p),
+        row: String(r < 2 ? 2 : 4),
+        ...look(k), selected,
+        bracket: !!k,
+        fire: fire === idx,
+        anim: fire === idx ? 'dk-bump .32s ease-out' : 'none',
+        rippleColor: k ? colorOf(k.color)[1] : '#EDEDED',
+        ring: selected ? `0 0 0 3px ${BG}, 0 0 0 5px #EDEDED` : 'none',
+        outline: over === idx ? '2px dashed #EDEDED' : '2px solid transparent',
+        aria: `${REGIONS[r]} ${PATTERNS[p]}`,
+        draggable: k ? 'true' : 'false',
+        dragStart: (e) => {
+          this.drag = { type: 'key', idx };
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(idx));
+        },
+        dragOver: (e) => {
+          e.preventDefault();
+          if (over !== idx) this.setState({ over: idx });
+        },
+        dragLeave: () => { if (over === idx) this.setState({ over: null }); },
+        drop: dropOn(idx),
+        pick: () => this.setState({ sel: idx })
+      });
+    });
+
+    const k = keys[sel];
+    const region = Math.floor(sel / 2);
+    const pat = sel % 2;
+    const m = [0, 1, 2, 3].map((qi) => (qi === region ? '#EDEDED' : '#2E2E2E'));
+    const accentBg = k ? colorOf(k.color)[1] : '#EDEDED';
+    const accentFg = k ? colorOf(k.color)[2] : '#121212';
+    const selInfo = {
+      ...look(k), size: k ? 50 : 24, filled: !!k,
+      trigger: `${REGIONS[region]} ${PATTERNS[pat]}`,
+      m0: m[0], m1: m[1], m2: m[2], m3: m[3],
+      dots: Array.from({ length: pat + 1 }, () => ({ sz: 7 })),
+      file: k && k.p.file, cmd: k && k.p.cmd, url: k && k.p.url
+    };
+
+    const acts = ACTS.map(([id, name, icon]) => {
+      const on = !!k && k.a === id;
+      return {
+        name, d: IC[icon], on,
+        bg: on ? accentBg : '#262626', fg: on ? accentFg : '#BDBDBD',
+        dragStart: (e) => {
+          this.drag = { type: 'act', id };
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData('text/plain', id);
+        },
+        pick: () => {
+          if (!k) setKey(fresh(id));
+          else if (k.a !== id) setKey({ a: id, p: { ...actOf(id)[4] } });
+        }
+      };
+    });
+
+    const caps = k && k.a === 'hotkey' ? k.p.keys.map((key) => {
+      const iconKey = key === 'Shift' ? 'shift' : key === 'Win' ? 'win' : null;
+      return { k: key, isIcon: !!iconKey, isText: !iconKey, d: iconKey ? IC[iconKey] : '' };
+    }) : [];
+
+    const tile = (on) => ({ bg: on ? accentBg : '#262626', fg: on ? accentFg : '#BDBDBD' });
+    const mediaOps = MEDIA_OPS.map(([id, name]) => {
+      const on = !!k && k.p.op === id;
+      return { name, d: IC[id], on, ...tile(on), pick: () => setKey({ p: { op: id } }) };
+    });
+    const profTargets = PROFILES.map((name, i) => {
+      const on = !!k && k.p.to === i;
+      return { name, on, ...tile(on), pick: () => setKey({ p: { to: i } }) };
+    });
+    const swatches = COLORS.map(([id, bg, , name]) => {
+      const on = !!k && k.color === id;
+      return { bg, name, on, ring: on ? '0 0 0 3px #1A1A1A, 0 0 0 5px #EDEDED' : 'none', pick: () => setKey({ color: id }) };
+    });
+    const icons = ICON_LIST.map(([id, name]) => {
+      const on = !!k && k.icon === id;
+      return { name, d: IC[id], on, ...tile(on), pick: () => setKey({ icon: id, slash: false }) };
+    });
+    const profiles = PROFILES.map((name, i) => ({
+      name, on: i === prof,
+      bg: i === prof ? '#EDEDED' : 'transparent',
+      fg: i === prof ? '#121212' : '#8A8A8A',
+      pick: () => this.setState({ prof: i })
+    }));
+
+    const a = k ? k.a : null;
+    return {
+      cells, sel: selInfo, acts, caps, mediaOps, profTargets, swatches, icons, profiles, locked,
+      pHotkey: a === 'hotkey', pLaunch: a === 'launch', pMedia: a === 'media', pCommand: a === 'command', pHttp: a === 'http', pProfile: a === 'profile',
+      icLock: IC.lock,
+      gridOpacity: locked ? '0.25' : '1',
+      lockBg: locked ? '#D62413' : 'transparent',
+      lockInk: locked ? '#FFFFFF' : '#BDBDBD',
+      toggleLock: () => this.setState({ locked: !locked }),
+      dragEnd: () => { this.drag = null; if (over !== null) this.setState({ over: null }); },
+      clear: () => setKey(null)
+    };
+  }
+}
+</script>
+</body>
+</html>

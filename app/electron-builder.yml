@@ -1,0 +1,20 @@
+appId: jp.deskapi.app
+productName: DeskAPI
+directories:
+  output: release
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+
+asarUnpack:
+  - "node_modules/@serialport/**"
+npmRebuild: false

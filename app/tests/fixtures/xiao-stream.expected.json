@@ -1,0 +1,13 @@
+[
+  {
+    "t": "hello",
+    "fw": "xiao-stream",
+    "cal": false
+  },
+  {
+    "t": "tap",
+    "region": 0,
+    "count": 1,
+    "confidence": 1
+  }
+]
