@@ -63,3 +63,18 @@ Claude Code のメモリ（`~/.claude/projects/...`）は PC ごと。引き継�
 - Claude はリポジトリのルートで `claude` を起動する。`CLAUDE.md` → `AGENTS.md` → `docs/HANDOFF.md` の順に読まれる
 - Codex はリポジトリのルートで、PowerShell なら `$null | codex exec -s workspace-write -C . "docs/tasks/NN-*.md を実装して"`、Git Bash なら末尾に `< /dev/null`（stdin を閉じないと入力待ちで止まることがある）。サンドボックスはネットワークなしなので、依存の追加が要るときは先に `npm install` しておく
 - コミット・プッシュは PM（Claude）がレビューしてから。Codex はしない
+
+## 7. デモ動画・README 画像の再生成（任意）
+
+Remotion のソースと使用素材は `video/` にある。上の手順で `app/` の依存を入れたあと、リポジトリのルートから実行する。
+
+```powershell
+cd video
+npm ci
+npm run typecheck
+npm run studio       # プレビュー
+npm run render       # out/daas.mp4
+npm run stills       # out/stills/readme-*.png
+```
+
+シンボリックリンクや実機接続は不要。初回は Remotion が使用するブラウザーのダウンロードにネット接続が必要。構成と素材の詳細は [`video/README.md`](../video/README.md)。
