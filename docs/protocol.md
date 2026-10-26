@@ -80,11 +80,12 @@ ADC は減衰 12 dB で約 0〜3.1 V、入力は 1.65 V 中心なので、振れ
 - 各 ch を 2 kHz 以上でサンプリングし、DC を引いた絶対値のピークを見る
 - いずれかの ch が `threshold` を超えたら、そこから 15 ms の窓で全 ch のピークを取る。`templates` があれば最も似た型の領域、なければ最大の ch を領域とする
 - `refractoryMs` の間は次の打撃を見ない
+- `templates` があるとき、`confidence` が 0.3 未満の打は送らない（アプリの検出器の `MIN_CONFIDENCE`）
 - 1 打目のあと `doubleWindowMs` 待ち、同じ領域に 2 打目が来たら `count: 2`。別の領域に来たら 1 打目を `count: 1` で確定して送り、2 打目を新しい 1 打目として扱う
 
 ## xiao-stream（本番）
 
-チームの `firmware/xiao-stream/xiao-stream.ino`。詳しくはチームのブランチ `feature/device-receiver` の `firmware/xiao-stream/README.md` と `docs/decisions.md`（2026-10-24 判定をマイコンから PC へ移す）。
+チームの `firmware/xiao-stream/xiao-stream.ino`。2026-10-24 にチームで、判定をマイコンから PC に移すと決めた。
 
 ```text
 [desk] stream boot=2126667643 ch=D0,D1,D3,D4 rate=4000   ← 起動時だけ

@@ -13,17 +13,18 @@
 
 ## 正となるドキュメント
 
+正はコード（main）。下のドキュメントとコードが食い違ったら、コードに合わせてドキュメントを直す。ドキュメントに決まったことを書くときは、話した日付を添える。
+
 | ファイル | 中身 |
 |---|---|
 | `docs/spec.md` | 製品仕様、設定データの形、各アクションの動き |
 | `docs/protocol.md` | ESP32 ⇔ PC のシリアルプロトコル。本番ファーム `xiao-stream`（生値を送るだけ。判定はアプリの検出器）と、参考実装の JSON `deskapi-v1` |
-| `docs/firmware-interface.md` | アプリがファームに求めること（確定前の要件。形式の違いは `app/src/main/protocols/` のアダプタで吸収する） |
 | `docs/design/settings.dc.html` | 設定画面のデザイン（承認済み）。色・寸法・アイコンの SVG パスはここから写す |
 | `docs/design/calibrate.dc.html` | キャリブレーション画面のデザイン（承認済み） |
 | `docs/circuit.html` | 入力回路（チームの回路図）。**回路は変えない**。ピン・部品・受入試験はここが正 |
 | `docs/hardware-test.md` | Windows の PC で実機をつないで確かめる手順 |
 | `docs/setup.md` | 別の PC で開発を始める手順（入れるもの、`npm ci`、Git に入っていないもの） |
-| `docs/tasks/NN-*.md` | 実装タスク。完了条件まで満たすこと |
+| `docs/tasks/NN-*.md` | 実装タスク。完了条件まで満たすこと。書いた時点の指示なので、終わったタスクの中身は今のコードと違うことがある |
 
 `*.dc.html` は独自テンプレート形式のデザインモックで、そのままでは動かない。`<script type="text/x-dc">` 内の定数（`IC`, `COLORS`, `ACTS` など）と、テンプレート部のインラインスタイルを React + Tailwind に移植する。
 
