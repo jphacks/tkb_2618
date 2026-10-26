@@ -1,0 +1,23 @@
+{
+  "name": "daas-video",
+  "private": true,
+  "description": "DaaS のデモ動画（Remotion）",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render DaaS out/daas.mp4",
+    "still": "remotion still",
+    "typecheck": "tsc --noEmit",
+    "stills": "remotion still readme-hero out/stills/readme-hero.png && remotion still readme-problem out/stills/readme-problem.png && remotion still readme-keys out/stills/readme-keys.png && remotion still readme-how out/stills/readme-how.png && remotion still readme-settings out/stills/readme-settings.png"
+  },
+  "dependencies": {
+    "@fontsource/line-seed-jp": "5.3.2",
+    "@remotion/cli": "4.0.538",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.538"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}

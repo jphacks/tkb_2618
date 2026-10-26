@@ -1,0 +1,4 @@
+node_modules/
+out/
+public/footage/*
+!public/footage/IMG_4968-1080.mp4

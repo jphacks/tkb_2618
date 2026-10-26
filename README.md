@@ -134,6 +134,7 @@ PC 側は Windows の常駐アプリで、設定画面を閉じていても操�
 | [`app/`](app/) | PC アプリ（Windows 常駐、Electron ＋ React） |
 | [`firmware/xiao-stream/`](firmware/xiao-stream/) | 本番のファーム（Arduino IDE で書き込む） |
 | [`tools/tap-collect/`](tools/tap-collect/) | 叩き方ごとの生の値を記録し、検出器を採点する CLI |
+| [`video/`](video/) | デモ動画と README 画像の Remotion ソース・使用素材・再生成手順 |
 | [`docs/`](docs/) | 仕様・プロトコル・回路図・デザイン |
 
 実機がなくても、疑似入力で画面を動かせます。
