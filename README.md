@@ -1,12 +1,12 @@
 # DaaS
 
-**机を叩くと、API が叩かれる**
+**机を叩く=API を叩く**
 
 ふだんの机が PC の入力デバイスに
 
-[![DaaS のデモ動画](docs/images/readme-hero.png)](https://youtu.be/Rw6g0IRwGyE)
+[![DaaS の動画](docs/images/readme-hero.png)](https://youtu.be/Rw6g0IRwGyE)
 
-デモ動画：https://youtu.be/Rw6g0IRwGyE
+動画：https://youtu.be/Rw6g0IRwGyE
 
 ## 製品概要
 
@@ -116,7 +116,6 @@ PC 側は Windows の常駐アプリで、設定画面を閉じていても操�
 * 圧電サウンダー 村田製作所 7BB-27-4L0 × 4
 * オペアンプ NJU7043D × 2（入力回路：[回路図](docs/circuit.html)）
 * Windows 11 の PC
-え、
 ### 独自技術
 
 #### ハッカソンで開発した独自機能・技術
