@@ -8,7 +8,7 @@
 
 動画：https://youtu.be/Rw6g0IRwGyE
 
-プレゼンで用いた資料:https://www.figma.com/deck/1f6MsLpNuZx3Rx5OYhvDcZ/JPHACKS%E7%99%BA%E8%A1%A8%E5%8E%9F%E7%A8%BF?node-id=4-68&t=3t3ICDwL1XX7rxEx-1
+プレゼンで用いた資料:[https://www.figma.com/deck/1f6MsLpNuZx3Rx5OYhvDcZ/JPHACKS%E7%99%BA%E8%A1%A8%E5%8E%9F%E7%A8%BF?node-id=4-68&t=3t3ICDwL1XX7rxEx-1](https://www.figma.com/deck/1f6MsLpNuZx3Rx5OYhvDcZ/JPHACKS%E7%99%BA%E8%A1%A8%E5%8E%9F%E7%A8%BF?node-id=1-42&t=3t3ICDwL1XX7rxEx-1)
 
 ## 製品概要
 
