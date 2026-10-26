@@ -148,8 +148,13 @@ DaaS は叩いた場所を見分けるので、1 回叩くだけの操作を 4 �
 
 #### ハッカソンで開発した独自機能・技術
 
-* 叩いた場所と回数の検出器：4 ch の振幅の比率を、キャリブレーションで登録した場所ごとのパターンと比較します。同じ場所への 320 ms 以内の 2 打目は 2 回として数え、飽和と判定した打撃では、割り当てた操作を実行しません（[`detector.ts`](app/src/main/protocols/detector.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
-* キャリブレーション：静止時の振動と 4 か所 × 3 打から、ch ごとのしきい値・場所ごとのパターン・余韻を無視する時間を計算し、区別しにくい場所の再登録を求めることで、机の素材や柱の配置などに対応します（[`calibration.ts`](app/src/shared/calibration.ts)、[`tap-procedure.ts`](app/src/shared/tap-procedure.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
+* 叩いた場所と回数の検出器（[`detector.ts`](app/src/main/protocols/detector.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）
+  1. ch ごとに静止時の値を追いかけ、そこからのずれを出す
+  2. どれかの ch のずれがしきい値を超えたら、そこから 15 ms のあいだ 4 ch それぞれの最大のずれを記録する
+  3. 4 ch の最大のずれと、キャリブレーションで登録した 4 か所の型とのコサイン類似度を計算し、いちばん似た型を叩いた場所とする
+  4. 1 位と 2 位の類似度の差を信頼度とし、0.3 未満の打撃は捨てる。実機の記録では場所を取り違えた打撃はすべて 0.3 未満、正しい打撃は 0.5 以上だった
+  5. 320 ms 以内に同じ場所へ 2 打目が来たら 2 回、来なければ 1 回とする。飽和した打撃では操作を実行しない
+* キャリブレーション（[`calibration.ts`](app/src/shared/calibration.ts)、[`tap-procedure.ts`](app/src/shared/tap-procedure.ts)、[42569d5](https://github.com/jphacks/tkb_2618/commit/42569d5)）：ch ごとのしきい値は静止時の揺れの 2 倍と、その ch が一番大きく反応した打撃の半分のうち大きいほうにします。場所ごとの型は 3 打の平均です。12 打を 1 打ずつ抜いて判定し直し、取り違える場所があれば叩き直してもらいます
 * 記録と採点のツール：叩き方ごとの生の値を記録し、アプリと同じ検出・キャリブレーションのコードで、場所と回数が合っているかを採点する開発用のツールです。採点の結果をもとに、キャリブレーションを改善できます（[`tools/tap-collect`](tools/tap-collect)、[6530c8a](https://github.com/jphacks/tkb_2618/commit/6530c8a)）
 * 生の値を送るファーム（[`firmware/xiao-stream`](firmware/xiao-stream)、[508970c](https://github.com/jphacks/tkb_2618/commit/508970c)）と、それを読むアプリ側のアダプタ（[`app/src/main/protocols/`](app/src/main/protocols/)、[769d0bb](https://github.com/jphacks/tkb_2618/commit/769d0bb)）
 
